@@ -4,7 +4,11 @@
   "type": "module",
   "private": true,
   "engines": { "node": ">=18" },
-  "scripts": { "dev": "node --watch index.js", "start": "node index.js" },
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "build": "node --check index.js"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
