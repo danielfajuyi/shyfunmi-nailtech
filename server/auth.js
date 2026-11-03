@@ -1,0 +1,22 @@
+import jwt from 'jsonwebtoken';
+import { db } from './db.js';
+
+const SECRET = process.env.JWT_SECRET || 'dev-only-secret-change-me';
+if (!process.env.JWT_SECRET) console.warn('Warning: JWT_SECRET is not set. Set it in server/.env before going live.');
+const opts = () => ({ httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true' });
+
+export const setCookie = (res, u) =>
+  res.cookie('token', jwt.sign({ id: u.id }, SECRET, { expiresIn: '7d' }), { ...opts(), maxAge: 7 * 864e5 });
+export const clearCookie = (res) => res.clearCookie('token', opts());
+
+export function attach(req, _res, next) {
+  const t = req.cookies?.token;
+  if (t) {
+    try { req.user = db.users.find((u) => u.id === jwt.verify(t, SECRET).id); } catch { /* invalid token */ }
+  }
+  next();
+}
+export const need = (req, res, next) => (req.user ? next() : res.status(401).json({ error: 'Please sign in.' }));
+export const adminOnly = (req, res, next) =>
+  req.user?.role === 'admin' ? next() : res.status(403).json({ error: 'Admins only.' });
+export const pub = (u) => u && { id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role };
