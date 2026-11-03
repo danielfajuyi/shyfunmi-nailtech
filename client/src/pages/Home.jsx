@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
-import { Nail, Placeholder } from '../components/Nail.jsx';
+import { Placeholder } from '../components/Nail.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
 import { dur, money } from '../utils.js';
@@ -14,12 +14,57 @@ const STEPS = [
   ['Pick a time', 'See live availability and choose a slot that suits you.'],
   ['Get confirmed', 'Shyfunmi confirms your booking, and you can track it in your account.'],
 ];
-const FLOAT = [
-  { shape: 'Almond', color: '#E9B8C6', x: '6%', y: '34%', w: 150, r: -8, d: 6 },
-  { shape: 'Coffin', color: '#6B2D5C', x: '34%', y: '4%', w: 170, r: 4, d: 7 },
-  { shape: 'Stiletto', color: '#F3E9EC', x: '62%', y: '30%', w: 150, r: 10, d: 5.5 },
-  { shape: 'Square', color: '#2D4BE0', x: '40%', y: '56%', w: 120, r: -4, d: 6.5 },
+
+// Floating particles for hero
+const PARTICLES = [
+  { size: 6, x: '12%', y: '20%', delay: 0 },
+  { size: 4, x: '28%', y: '60%', delay: 0.5 },
+  { size: 8, x: '45%', y: '15%', delay: 0.3 },
+  { size: 5, x: '68%', y: '45%', delay: 0.8 },
+  { size: 7, x: '82%', y: '22%', delay: 0.2 },
+  { size: 4, x: '90%', y: '70%', delay: 0.6 },
+  { size: 9, x: '55%', y: '78%', delay: 0.4 },
+  { size: 5, x: '18%', y: '85%', delay: 0.9 },
 ];
+
+// Art panel: gradient orbs + style words
+function HeroArt() {
+  const words = ['Cateye', 'French tips', 'Marble', 'Freestyle', 'Press-ons', 'Ombré'];
+  return (
+    <div className="hero-art" aria-hidden="true">
+      {/* Glowing orbs */}
+      <div className="orb orb-1" />
+      <div className="orb orb-2" />
+      <div className="orb orb-3" />
+      {/* Floating sparkles */}
+      {PARTICLES.map((p, i) => (
+        <motion.span
+          key={i}
+          className="sparkle"
+          style={{ width: p.size, height: p.size, left: p.x, top: p.y }}
+          animate={{ y: [0, -18, 0], opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 3 + i * 0.4, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
+        />
+      ))}
+      {/* Style word chips floating in */}
+      <div className="word-cloud">
+        {words.map((w, i) => (
+          <motion.span
+            key={w}
+            className="style-chip"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6 + i * 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {w}
+          </motion.span>
+        ))}
+      </div>
+      {/* Big decorative ring */}
+      <div className="hero-ring" />
+    </div>
+  );
+}
 
 export default function Home() {
   useTitle('');
@@ -44,17 +89,13 @@ export default function Home() {
             <Link className="btn" to="/book">Book appointment</Link>
             <Link className="btn ghost" to="/gallery">See the work</Link>
           </motion.div>
+          <motion.div className="hero-badges" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3, duration: 0.7 }}>
+            <span className="badge">✦ Port Harcourt</span>
+            <span className="badge">✦ Loyalty rewards</span>
+            <span className="badge">✦ Book online</span>
+          </motion.div>
         </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="glow" />
-          {FLOAT.map((n, i) => (
-            <motion.div key={n.shape} className="floaty" style={{ left: n.x, top: n.y, width: n.w }}
-              initial={{ opacity: 0, y: 40, rotate: n.r }} animate={{ opacity: 1, y: [0, -14, 0], rotate: [n.r, n.r + 3, n.r] }}
-              transition={{ opacity: { delay: 0.5 + i * 0.15, duration: 0.8 }, y: { duration: n.d, repeat: Infinity, ease: 'easeInOut' }, rotate: { duration: n.d, repeat: Infinity, ease: 'easeInOut' } }}>
-              <Nail shape={n.shape} color={n.color} />
-            </motion.div>
-          ))}
-        </div>
+        <HeroArt />
       </section>
 
       <div className="marquee" aria-hidden="true"><div className="track">{[...STYLES, ...STYLES].map((x, i) => <span key={i}>{x}</span>)}</div></div>

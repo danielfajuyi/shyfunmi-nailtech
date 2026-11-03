@@ -22,7 +22,7 @@ export function uid() { return crypto.randomUUID(); }
 const day = (closed = false) => ({ open: '09:00', close: '18:00', closed });
 
 const defaults = () => ({
-  users: [], services: [], bookings: [], photos: [], reviews: [], enrollments: [],
+  users: [], services: [], bookings: [], photos: [], reviews: [], enrollments: [], messages: [],
   settings: {
     businessName: 'Shyfunmi Nails', tagline: 'Your confidence starts here',
     address: 'Peter Odili Road, Port Harcourt', phone: '', whatsapp: '',

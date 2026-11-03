@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { put, del } from '@vercel/blob';
 import { db, save, uid, refresh, settled } from './db.js';
 import { attach, need, adminOnly, setCookie, clearCookie, pub } from './auth.js';
+import { sendBookingConfirmation, sendAdminNewBooking, sendStatusUpdate, sendContactMessage } from './mailer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5000;
@@ -83,6 +84,9 @@ function createBooking(body, user, force = false) {
   };
   db.bookings.push(b);
   save();
+  // Fire-and-forget emails (don't block the response)
+  sendBookingConfirmation(b, db.settings).catch(() => {});
+  sendAdminNewBooking(b, db.settings).catch(() => {});
   return { booking: b };
 }
 
@@ -155,6 +159,21 @@ app.post('/api/enroll', formLimit, (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+app.post('/api/contact', formLimit, (req, res) => {
+  const name = clean(req.body.name, 80);
+  const email = clean(req.body.email, 120).toLowerCase();
+  const phone = clean(req.body.phone, 25);
+  const subject = clean(req.body.subject, 120);
+  const message = clean(req.body.message, 1000);
+  if (name.length < 2) return bad(res, 'Enter your name.');
+  if (message.length < 5) return bad(res, 'Please write a message.');
+  const msg = { id: uid(), name, email, phone, subject, message, read: false, createdAt: new Date().toISOString() };
+  db.messages.push(msg);
+  save();
+  sendContactMessage(msg).catch(() => {});
+  res.status(201).json({ ok: true });
+});
+
 /* ---------- auth ---------- */
 app.post('/api/auth/register', authLimit, (req, res) => {
   const name = clean(req.body.name, 80), email = clean(req.body.email, 120).toLowerCase(), phone = clean(req.body.phone, 25);
@@ -192,8 +211,22 @@ app.get('/api/me/bookings', need, (req, res) => {
 app.post('/api/me/bookings/:id/cancel', need, (req, res) => {
   const b = db.bookings.find((x) => x.id === req.params.id && x.userId === req.user.id);
   if (!b) return bad(res, 'Booking not found.', 404);
-  if (!['pending', 'confirmed'].includes(b.status)) return bad(res, 'This booking can’t be cancelled.');
+  if (!['pending', 'confirmed'].includes(b.status)) return bad(res, 'This booking cannot be cancelled.');
   b.status = 'cancelled'; save();
+  sendStatusUpdate(b, db.settings).catch(() => {});
+  res.json(withPrice(b));
+});
+
+app.post('/api/me/bookings/:id/reschedule', need, (req, res) => {
+  const b = db.bookings.find((x) => x.id === req.params.id && x.userId === req.user.id);
+  if (!b) return bad(res, 'Booking not found.', 404);
+  if (!['pending', 'confirmed'].includes(b.status)) return bad(res, 'Only pending or confirmed bookings can be rescheduled.');
+  const date = clean(req.body.date, 10), time = clean(req.body.time, 5);
+  if (!isDate(date) || !isTime(time)) return bad(res, 'Choose a valid date and time.');
+  const svc = db.services.find((x) => x.id === b.serviceId) || { duration: b.duration };
+  const slot = slotsFor(date, svc).find((x) => x.time === time);
+  if (!slot || !slot.free) return bad(res, 'That time is not available. Choose another.');
+  b.date = date; b.time = time; b.status = 'pending'; save();
   res.json(withPrice(b));
 });
 
@@ -245,6 +278,8 @@ admin.get('/stats', (_req, res) => {
     top: Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5),
     newEnrollments: db.enrollments.filter((e) => e.status === 'new').length,
     pendingReviews: db.reviews.filter((r) => !r.approved).length,
+    unreadMessages: (db.messages || []).filter((m) => !m.read).length,
+    todayBookings: bs.filter((b) => b.date === now.date && b.status !== 'cancelled').length,
     next: bs.filter((b) => ['pending', 'confirmed'].includes(b.status) && b.date >= now.date)
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 5).map(withPrice),
   });
@@ -264,6 +299,7 @@ admin.post('/bookings', (req, res) => {
 admin.patch('/bookings/:id', (req, res) => {
   const b = db.bookings.find((x) => x.id === req.params.id), p = req.body;
   if (!b) return bad(res, 'Booking not found.', 404);
+  const prevStatus = b.status;
   if (p.status) { if (!STATUSES.includes(p.status)) return bad(res, 'Invalid status.'); b.status = p.status; }
   if ('discountPct' in p) b.discountPct = Math.max(0, Math.min(100, Number(p.discountPct) || 0));
   if ('price' in p) b.price = Math.max(0, Number(p.price) || 0);
@@ -271,6 +307,10 @@ admin.patch('/bookings/:id', (req, res) => {
   if (p.date) { if (!isDate(p.date)) return bad(res, 'Invalid date.'); b.date = p.date; }
   if (p.time) { if (!isTime(p.time)) return bad(res, 'Invalid time.'); b.time = p.time; }
   save();
+  // Send email if status changed
+  if (p.status && p.status !== prevStatus && ['confirmed', 'completed', 'cancelled'].includes(p.status)) {
+    sendStatusUpdate(b, db.settings).catch(() => {});
+  }
   res.json(withPrice(b));
 });
 admin.delete('/bookings/:id', (req, res) => { db.bookings = db.bookings.filter((b) => b.id !== req.params.id); save(); res.json({ ok: true }); });
@@ -370,6 +410,15 @@ admin.put('/settings', (req, res) => {
   save(); res.json(s);
 });
 
+/* ---------- messages (contact form) ---------- */
+admin.get('/messages', (_req, res) => res.json(db.messages.slice().reverse()));
+admin.patch('/messages/:id', (req, res) => {
+  const m = db.messages.find((x) => x.id === req.params.id);
+  if (!m) return bad(res, 'Message not found.', 404);
+  m.read = !!req.body.read; save(); res.json(m);
+});
+admin.delete('/messages/:id', (req, res) => { db.messages = db.messages.filter((m) => m.id !== req.params.id); save(); res.json({ ok: true }); });
+
 /* ---------- static site (after `npm run build`) ---------- */
 const dist = path.join(__dirname, '../client/dist');
 app.use('/api', (_req, res) => bad(res, 'Not found.', 404));
@@ -384,3 +433,4 @@ app.use((err, _req, res, _next) => bad(res, err.message || 'Something went wrong
 if (!process.env.VERCEL) app.listen(PORT, () => console.log(`Shyfunmi Nails running on http://localhost:${PORT}`));
 
 export default app;
+

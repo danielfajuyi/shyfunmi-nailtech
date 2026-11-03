@@ -65,9 +65,24 @@ select.pill.sel { border: 0; padding: 7px 14px; cursor: pointer; }
 .hero { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 40px; align-items: center; min-height: min(86vh, 760px); padding-block: 40px 60px; }
 .mask { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.08em; }
 .mask span { display: inline-block; }
-.hero-art { position: relative; height: min(520px, 60vw); } .glow { position: absolute; inset: 8% 4%; background: radial-gradient(closest-side, var(--blush), transparent 72%); filter: blur(10px); }
+
+/* New hero art: gradient orbs + sparkles + word cloud */
+.hero-art { position: relative; height: min(520px, 60vw); overflow: hidden; border-radius: 36px; background: linear-gradient(135deg, var(--blush) 0%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 60%, var(--bg) 100%); }
+.orb { position: absolute; border-radius: 50%; filter: blur(48px); }
+.orb-1 { width: 280px; height: 280px; background: color-mix(in srgb, var(--accent) 30%, transparent); top: -60px; right: -60px; animation: orbFloat 8s ease-in-out infinite; }
+.orb-2 { width: 200px; height: 200px; background: color-mix(in srgb, var(--blush) 60%, transparent); bottom: 20px; left: -40px; animation: orbFloat 10s ease-in-out infinite reverse; }
+.orb-3 { width: 140px; height: 140px; background: color-mix(in srgb, var(--accent) 20%, transparent); top: 50%; left: 40%; animation: orbFloat 7s ease-in-out infinite 2s; }
+@keyframes orbFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-24px) scale(1.08); } }
+.sparkle { position: absolute; border-radius: 50%; background: var(--accent); }
+.word-cloud { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 12px; padding: 40px; }
+.style-chip { padding: 10px 20px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 80%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); font: 300 1.1rem var(--display); letter-spacing: -0.02em; color: var(--ink); backdrop-filter: blur(10px); }
+.hero-ring { position: absolute; bottom: -80px; right: -80px; width: 320px; height: 320px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.hero-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+.badge { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.8rem; color: var(--mute); }
+
+.glow { position: absolute; inset: 8% 4%; background: radial-gradient(closest-side, var(--blush), transparent 72%); filter: blur(10px); }
 .floaty { position: absolute; filter: drop-shadow(0 24px 28px rgba(42, 22, 38, 0.22)); }
-@media (max-width: 860px) { .hero { grid-template-columns: 1fr; min-height: 0; } .hero-art { height: 340px; order: -1; } }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; min-height: 0; } .hero-art { height: 280px; order: -1; border-radius: 24px; } }
 .marquee { overflow: hidden; border-block: 1px solid var(--line); padding: 20px 0; }
 .track { display: flex; gap: 56px; width: max-content; animation: marquee 32s linear infinite; font: 300 1.7rem var(--display); letter-spacing: -0.02em; color: var(--mute); }
 .track span::after { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: 56px; vertical-align: middle; }
@@ -151,12 +166,19 @@ div.check { width: 64px; height: 64px; border-radius: 50%; background: var(--ink
 /* ===== Dashboards ===== */
 .dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; }
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 28px; overflow-x: auto; } .tabs button { padding: 12px 18px; border: 0; background: none; color: var(--mute); border-bottom: 2px solid transparent; margin-bottom: -1px; } .tabs button.on { color: var(--ink); border-color: var(--accent); }
+.accts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-bottom: 28px; }
 .blist { display: grid; gap: 12px; margin: 18px 0; }
 .bitem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 22px 24px; display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; } .bitem h3 { margin-bottom: 6px; } .bitem p { margin: 0 0 3px; font-size: 0.93rem; } .bitem p.muted { font-size: 0.85rem; }
 .bact { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; align-content: flex-start; }
 .review-form { flex-basis: 100%; display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; } .rating button { border: 0; background: none; font-size: 1.7rem; color: var(--line); } .rating button.on { color: var(--accent); }
 .edit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; align-items: end; flex-basis: 100%; } .edit-grid .wide { grid-column: 1 / -1; } .edit-grid h3 { margin-bottom: 4px; }
 form.bitem.edit-grid { display: grid; } .edit-grid .check { padding-bottom: 12px; }
+/* Admin alert chips */
+.alerts-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 16px; }
+.alert-chip { padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 500; text-decoration: none; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); transition: background 0.2s; }
+.alert-chip:hover { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.alert-chip.pending { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.alert-chip.warn { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
 
 /* ===== Admin ===== */
 .admin { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }

@@ -9,7 +9,17 @@ import { useLoad, useTitle } from '../hooks.js';
 import { fmtDate, fmtTime, money, waClient } from '../utils.js';
 import { Gallery, Services, Settings } from './AdminManage.jsx';
 
-const TABS = [['overview', 'Overview'], ['bookings', 'Bookings'], ['services', 'Services'], ['gallery', 'Gallery'], ['clients', 'Clients'], ['training', 'Training'], ['reviews', 'Reviews'], ['settings', 'Settings']];
+const TABS = [
+  ['overview', 'Overview'],
+  ['bookings', 'Bookings'],
+  ['services', 'Services'],
+  ['gallery', 'Gallery'],
+  ['clients', 'Clients'],
+  ['training', 'Training'],
+  ['reviews', 'Reviews'],
+  ['messages', 'Messages'],
+  ['settings', 'Settings'],
+];
 
 export default function Admin() {
   useTitle('Admin');
@@ -21,7 +31,7 @@ export default function Admin() {
   if (!user) return <Navigate to="/login?next=/admin" replace />;
   if (user.role !== 'admin') return <Navigate to="/account" replace />;
   const cur = site.settings.currency;
-  const View = { overview: Overview, bookings: Bookings, services: Services, gallery: Gallery, clients: Clients, training: Training, reviews: Reviews, settings: Settings }[tab] || Overview;
+  const View = { overview: Overview, bookings: Bookings, services: Services, gallery: Gallery, clients: Clients, training: Training, reviews: Reviews, messages: Messages, settings: Settings }[tab] || Overview;
   return (
     <div className="admin">
       <aside className={`side ${menu ? 'open' : ''}`}>
@@ -50,10 +60,28 @@ function Overview({ cur }) {
   return (
     <>
       <div className="stats">
-        {[['Pending', d.pending, '/admin/bookings'], ['Upcoming', d.upcoming], ['Completed visits', d.completed], ['Clients', d.clients, '/admin/clients'], ['Revenue', money(d.revenue, cur) === 'Price on request' ? `${cur}0` : money(d.revenue, cur)]].map(([l, v, to]) => (
+        {[
+          ['Today', d.todayBookings, null],
+          ['Pending', d.pending, '/admin/bookings'],
+          ['Upcoming', d.upcoming, null],
+          ['Completed visits', d.completed, null],
+          ['Clients', d.clients, '/admin/clients'],
+          ['Revenue', money(d.revenue, cur) === 'Price on request' ? `${cur}0` : money(d.revenue, cur), null],
+        ].map(([l, v, to]) => (
           <div className="stat" key={l}><small>{l}</small><b>{v}</b>{to && <Link to={to}>View</Link>}</div>
         ))}
       </div>
+
+      {/* Quick-action alerts */}
+      {(d.pending > 0 || d.newEnrollments > 0 || d.pendingReviews > 0 || d.unreadMessages > 0) && (
+        <div className="alerts-row">
+          {d.pending > 0 && <Link to="/admin/bookings" className="alert-chip pending">{d.pending} booking{d.pending !== 1 ? 's' : ''} need confirmation</Link>}
+          {d.newEnrollments > 0 && <Link to="/admin/training" className="alert-chip warn">{d.newEnrollments} training enqu{d.newEnrollments !== 1 ? 'iries' : 'iry'}</Link>}
+          {d.pendingReviews > 0 && <Link to="/admin/reviews" className="alert-chip">{d.pendingReviews} review{d.pendingReviews !== 1 ? 's' : ''} awaiting approval</Link>}
+          {d.unreadMessages > 0 && <Link to="/admin/messages" className="alert-chip">{d.unreadMessages} unread message{d.unreadMessages !== 1 ? 's' : ''}</Link>}
+        </div>
+      )}
+
       <div className="agrid">
         <div className="card"><h3>Revenue, last 6 months</h3>
           <div className="bars">{d.months.map((m) => <div key={m.month} className="bar"><i style={{ height: `${(m.total / max) * 100}%` }} title={`${cur}${m.total.toLocaleString('en-NG')}`} /><small>{m.month}</small></div>)}</div>
@@ -62,6 +90,7 @@ function Overview({ cur }) {
           {d.top.length ? d.top.map((t) => <div className="line" key={t.name}><span>{t.name}</span><b>{t.count}</b></div>) : <p className="muted">No bookings yet.</p>}
           <div className="line"><span>New training enquiries</span><b>{d.newEnrollments}</b></div>
           <div className="line"><span>Reviews waiting</span><b>{d.pendingReviews}</b></div>
+          <div className="line"><span>Unread messages</span><b>{d.unreadMessages}</b></div>
         </div>
       </div>
       <div className="card"><h3>Next appointments</h3>
@@ -76,6 +105,17 @@ function Bookings({ cur }) {
   const [q, setQ] = useState('');
   const { data, reload, error } = useLoad(`/api/admin/bookings?status=${status}&q=${encodeURIComponent(q)}`);
   const [add, setAdd] = useState(false);
+
+  const exportCSV = () => {
+    if (!data?.length) return;
+    const header = ['Name', 'Phone', 'Email', 'Service', 'Date', 'Time', 'Status', 'Price', 'Notes'];
+    const rows = data.map((b) => [b.name, b.phone, b.email, b.serviceName, b.date, b.time, b.status, b.finalPrice > 0 ? `${cur}${b.finalPrice}` : '', b.notes || ''].map((x) => `"${String(x || '').replace(/"/g, '""')}"`).join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'bookings.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div className="toolbar">
@@ -84,6 +124,7 @@ function Bookings({ cur }) {
           {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map((s) => <option key={s}>{s}</option>)}
         </select>
         <button className="btn sm" onClick={() => setAdd(!add)}>{add ? 'Close' : 'Add walk-in'}</button>
+        <button className="btn ghost sm" onClick={exportCSV}>Export CSV</button>
       </div>
       {add && <WalkIn done={() => { setAdd(false); reload(); }} />}
       <Loading d={data} e={error} />
@@ -100,6 +141,7 @@ function BookingRow({ b, cur, reload }) {
   const patch = async (body, msg = 'Saved') => { try { await api.patch(`/api/admin/bookings/${b.id}`, body); toast(msg); reload(); } catch (e) { toast(e.message, 'err'); } };
   const remove = async () => { if (confirm('Delete this booking permanently?')) { await api.del(`/api/admin/bookings/${b.id}`); toast('Deleted'); reload(); } };
   const msg = `Hello ${b.name}, your ${b.serviceName} appointment at ${site.settings.businessName} is ${b.status === 'cancelled' ? 'cancelled' : 'confirmed'} for ${fmtDate(b.date)} at ${fmtTime(b.time)}.`;
+  const mailtoLink = b.email ? `mailto:${b.email}?subject=Your appointment at ${encodeURIComponent(site.settings.businessName)}&body=${encodeURIComponent(msg)}` : null;
   return (
     <div className="bitem">
       <div>
@@ -107,7 +149,7 @@ function BookingRow({ b, cur, reload }) {
         <p>{b.serviceName}, {b.shape}{b.color && `, ${b.color}`}</p>
         <p>{fmtDate(b.date)}, {fmtTime(b.time)}</p>
         <p className="muted">{b.phone}{b.email && `, ${b.email}`}. {b.price > 0 ? `${money(b.finalPrice, cur)}${b.discountPct ? ` after ${b.discountPct}% off` : ''}` : 'No price set'}</p>
-        {b.notes && <p className="muted"><i>“{b.notes}”</i></p>}
+        {b.notes && <p className="muted"><i>"{b.notes}"</i></p>}
         {b.adminNote && <p className="muted">Note: {b.adminNote}</p>}
       </div>
       <div className="bact">
@@ -115,6 +157,7 @@ function BookingRow({ b, cur, reload }) {
           {['pending', 'confirmed', 'completed', 'cancelled'].map((s) => <option key={s}>{s}</option>)}
         </select>
         <a className="btn ghost sm" href={waClient(b.phone, msg)} target="_blank" rel="noreferrer">WhatsApp</a>
+        {mailtoLink && <a className="btn ghost sm" href={mailtoLink}>Email</a>}
         <button className="btn ghost sm" onClick={() => setEdit(!edit)}>{edit ? 'Close' : 'Edit'}</button>
         <button className="btn ghost sm danger" onClick={remove}>Delete</button>
       </div>
@@ -157,9 +200,22 @@ function Clients() {
   const [q, setQ] = useState('');
   if (!data) return <Loading d={data} e={error} />;
   const list = data.filter((c) => `${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(q.toLowerCase()));
+
+  const exportCSV = () => {
+    const header = ['Name', 'Email', 'Phone', 'Bookings', 'Completed visits', 'Joined'];
+    const rows = list.map((c) => [c.name, c.email, c.phone, c.bookings, c.visits, new Date(c.createdAt).toLocaleDateString('en-NG')].map((x) => `"${String(x || '').replace(/"/g, '""')}"`).join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'clients.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <>
-      <div className="toolbar"><input placeholder="Search clients" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" /></div>
+      <div className="toolbar">
+        <input placeholder="Search clients" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" />
+        <button className="btn ghost sm" onClick={exportCSV}>Export CSV</button>
+      </div>
       <div className="table-wrap"><table>
         <thead><tr><th>Name</th><th>Contact</th><th>Bookings</th><th>Completed visits</th><th>Joined</th></tr></thead>
         <tbody>{list.map((c) => <tr key={c.id}><td>{c.name}</td><td>{c.email}<br /><span className="muted">{c.phone}</span></td><td>{c.bookings}</td><td>{c.visits}</td><td>{new Date(c.createdAt).toLocaleDateString('en-NG')}</td></tr>)}</tbody>
@@ -179,10 +235,11 @@ function Training() {
       {!data.length && <p className="muted">No training enquiries yet.</p>}
       {data.map((e) => (
         <div className="bitem" key={e.id}>
-          <div><h3>{e.name}</h3><p>{e.level}. {e.phone}{e.email && `, ${e.email}`}</p>{e.message && <p className="muted"><i>“{e.message}”</i></p>}<p className="muted">{new Date(e.createdAt).toLocaleDateString('en-NG')}</p></div>
+          <div><h3>{e.name}</h3><p>{e.level}. {e.phone}{e.email && `, ${e.email}`}</p>{e.message && <p className="muted"><i>"{e.message}"</i></p>}<p className="muted">{new Date(e.createdAt).toLocaleDateString('en-NG')}</p></div>
           <div className="bact">
             <select className="pill sel" value={e.status} onChange={(ev) => set(e.id, ev.target.value)} aria-label="Status">{['new', 'contacted', 'enrolled', 'declined'].map((s) => <option key={s}>{s}</option>)}</select>
             <a className="btn ghost sm" target="_blank" rel="noreferrer" href={waClient(e.phone, `Hello ${e.name}, thank you for your interest in nail training.`)}>WhatsApp</a>
+            {e.email && <a className="btn ghost sm" href={`mailto:${e.email}`}>Email</a>}
             <button className="btn ghost sm danger" onClick={() => del(e.id)}>Delete</button>
           </div>
         </div>
@@ -207,6 +264,38 @@ function Reviews() {
             <span className={`pill ${r.approved ? 'confirmed' : 'pending'}`}>{r.approved ? 'published' : 'waiting'}</span>
             <button className="btn ghost sm" onClick={() => approve(r, !r.approved)}>{r.approved ? 'Hide' : 'Publish'}</button>
             <button className="btn ghost sm danger" onClick={() => del(r.id)}>Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Messages() {
+  const { data, reload, error } = useLoad('/api/admin/messages');
+  if (!data) return <Loading d={data} e={error} />;
+  const markRead = async (id, read) => { await api.patch(`/api/admin/messages/${id}`, { read }); reload(); };
+  const del = async (id) => { if (confirm('Delete this message?')) { await api.del(`/api/admin/messages/${id}`); reload(); } };
+  return (
+    <div className="blist">
+      {!data.length && <p className="muted">No contact form messages yet. When clients send messages, they'll appear here.</p>}
+      {data.map((m) => (
+        <div className="bitem" key={m.id} style={{ opacity: m.read ? 0.7 : 1 }}>
+          <div>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {m.name}
+              {!m.read && <span className="pill pending" style={{ fontSize: '0.72rem' }}>new</span>}
+            </h3>
+            <p style={{ fontWeight: 600, margin: '4px 0' }}>{m.subject || 'General enquiry'}</p>
+            <p className="muted">{m.email}{m.phone && ` · ${m.phone}`}</p>
+            <p style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: '0.93rem' }}>{m.message}</p>
+            <p className="muted" style={{ fontSize: '0.82rem', marginTop: 6 }}>{new Date(m.createdAt).toLocaleString('en-NG')}</p>
+          </div>
+          <div className="bact">
+            {m.email && <a className="btn ghost sm" href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject || 'Your enquiry')}`}>Reply by email</a>}
+            {m.phone && <a className="btn ghost sm" href={waClient(m.phone, `Hello ${m.name}, thanks for getting in touch about "${m.subject || 'your enquiry'}".`)}>WhatsApp</a>}
+            <button className="btn ghost sm" onClick={() => markRead(m.id, !m.read)}>{m.read ? 'Mark unread' : 'Mark read'}</button>
+            <button className="btn ghost sm danger" onClick={() => del(m.id)}>Delete</button>
           </div>
         </div>
       ))}
