@@ -5,8 +5,8 @@ async function request(method, url, body, isForm) {
     headers: body && !isForm ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data === null) throw new Error(data?.error || 'Something went wrong. Try again.');
   return data;
 }
 

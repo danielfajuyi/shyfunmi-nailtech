@@ -8,13 +8,16 @@ import bcrypt from 'bcryptjs';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { db, save, uid } from './db.js';
+import { put, del } from '@vercel/blob';
+import { db, save, uid, refresh, settled } from './db.js';
 import { attach, need, adminOnly, setCookie, clearCookie, pub } from './auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5000;
+// Photos go to Vercel Blob when BLOB_READ_WRITE_TOKEN is set, otherwise to server/uploads (local development).
+const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 const uploads = path.join(__dirname, 'uploads');
-fs.mkdirSync(uploads, { recursive: true });
+if (!useBlob) fs.mkdirSync(uploads, { recursive: true });
 
 /* ---------- helpers ---------- */
 const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
@@ -100,19 +103,26 @@ if (!db.users.some((u) => u.role === 'admin')) {
 /* ---------- app ---------- */
 const app = express();
 app.set('trust proxy', 1);
+// Load the latest data before each request, and hold the response until any save has reached the database.
+app.use(async (_req, res, next) => {
+  try { await refresh(); } catch (e) { return next(e); }
+  const end = res.end.bind(res);
+  res.end = (...args) => { settled().then(() => end(...args)); return res; };
+  next();
+});
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"],
     styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-    fontSrc: ['https://fonts.gstatic.com'], imgSrc: ["'self'", 'data:', 'blob:'], connectSrc: ["'self'"],
+    fontSrc: ['https://fonts.gstatic.com'], imgSrc: ["'self'", 'data:', 'blob:', 'https://*.public.blob.vercel-storage.com'], connectSrc: ["'self'"],
     upgradeInsecureRequests: null,
   } },
 }));
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use(attach);
-app.use('/uploads', express.static(uploads, { maxAge: '7d' }));
+if (!useBlob) app.use('/uploads', express.static(uploads, { maxAge: '7d' }));
 
 const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many attempts. Try again later.' } });
 const formLimit = rateLimit({ windowMs: 60 * 60 * 1000, limit: 25, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests. Try again later.' } });
@@ -286,28 +296,40 @@ admin.patch('/services/:id', (req, res) => {
 admin.delete('/services/:id', (req, res) => { db.services = db.services.filter((s) => s.id !== req.params.id); save(); res.json({ ok: true }); });
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploads,
-    filename: (_r, f, cb) => cb(null, uid() + path.extname(f.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '')),
-  }),
-  limits: { fileSize: 10 * 1024 * 1024, files: 12 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 12 },
   fileFilter: (_r, f, cb) => cb(null, /^image\/(jpeg|png|webp|gif)$/.test(f.mimetype)),
 });
-admin.post('/photos', upload.array('files', 12), (req, res) => {
-  if (!req.files?.length) return bad(res, 'Choose at least one image (JPG, PNG, WebP or GIF).');
-  const category = clean(req.body.category, 40) || 'Latest';
-  const added = req.files.map((f) => ({ id: uid(), url: `/uploads/${f.filename}`, category, createdAt: new Date().toISOString() }));
-  db.photos.unshift(...added); save();
-  res.status(201).json(added);
+admin.post('/photos', upload.array('files', 12), async (req, res, next) => {
+  try {
+    if (!req.files?.length) return bad(res, 'Choose at least one image (JPG, PNG, WebP or GIF).');
+    const category = clean(req.body.category, 40) || 'Latest';
+    const added = await Promise.all(req.files.map(async (f) => {
+      const name = uid() + path.extname(f.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '');
+      let url;
+      if (useBlob) {
+        url = (await put(`gallery/${name}`, f.buffer, { access: 'public', contentType: f.mimetype })).url;
+      } else {
+        fs.writeFileSync(path.join(uploads, name), f.buffer);
+        url = `/uploads/${name}`;
+      }
+      return { id: uid(), url, category, createdAt: new Date().toISOString() };
+    }));
+    db.photos.unshift(...added); save();
+    res.status(201).json(added);
+  } catch (e) { next(e); }
 });
 admin.patch('/photos/:id', (req, res) => {
   const p = db.photos.find((x) => x.id === req.params.id);
   if (!p) return bad(res, 'Photo not found.', 404);
   p.category = clean(req.body.category, 40) || p.category; save(); res.json(p);
 });
-admin.delete('/photos/:id', (req, res) => {
+admin.delete('/photos/:id', async (req, res) => {
   const p = db.photos.find((x) => x.id === req.params.id);
-  if (p) fs.unlink(path.join(uploads, path.basename(p.url)), () => {});
+  if (p) {
+    if (/^https?:/.test(p.url)) await del(p.url).catch(() => {});
+    else fs.unlink(path.join(uploads, path.basename(p.url)), () => {});
+  }
   db.photos = db.photos.filter((x) => x.id !== req.params.id); save(); res.json({ ok: true });
 });
 
@@ -358,4 +380,7 @@ if (fs.existsSync(dist)) {
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => bad(res, err.message || 'Something went wrong.'));
 
-app.listen(PORT, () => console.log(`Shyfunmi Nails running on http://localhost:${PORT}`));
+// Vercel runs the exported app as a serverless function; locally we listen on a port.
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(`Shyfunmi Nails running on http://localhost:${PORT}`));
+
+export default app;

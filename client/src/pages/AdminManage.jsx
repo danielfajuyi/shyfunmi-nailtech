@@ -47,6 +47,20 @@ function ServiceRow({ s, refresh }) {
   );
 }
 
+
+async function shrink(file) {
+  if (file.type === 'image/gif' || file.size < 1.2 * 1024 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+    return blob ? new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
+  } catch { return file; }
+}
+
 export function Gallery() {
   const { reload: reloadSite, site } = useApp();
   const [cat, setCat] = useState('Cateye');
@@ -57,9 +71,15 @@ export function Gallery() {
   const upload = async (e) => {
     e.preventDefault();
     if (!files.length) return toast('Choose at least one photo', 'err');
-    const fd = new FormData(); fd.append('category', cat); [...files].forEach((f) => fd.append('files', f));
     setBusy(true);
-    try { await api.upload('/api/admin/photos', fd); setFiles([]); e.target.reset(); toast('Photos uploaded'); reloadSite(); } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
+    try {
+      // One photo per request, shrunk first, because the host limits each request to about 4.5 MB.
+      for (const f of files) {
+        const fd = new FormData(); fd.append('category', cat); fd.append('files', await shrink(f));
+        await api.upload('/api/admin/photos', fd);
+      }
+      setFiles([]); e.target.reset(); toast('Photos uploaded'); reloadSite();
+    } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
   };
   const del = async (id) => { if (confirm('Remove this photo?')) { await api.del(`/api/admin/photos/${id}`); reloadSite(); } };
   const move = async (id, category) => { await api.patch(`/api/admin/photos/${id}`, { category }); reloadSite(); };
