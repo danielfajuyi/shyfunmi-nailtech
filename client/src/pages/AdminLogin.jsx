@@ -52,8 +52,8 @@ export default function AdminLogin() {
         {user && user.role === "client" ? (
           <div className="admin-login-alert">
             <p>
-              You are currently signed in as client <strong>{user.name}</strong>{" "}
-              ({user.email}).
+              You are currently signed in client <strong>{user.name}</strong> (
+              {user.email}).
             </p>
             <p className="muted" style={{ fontSize: "0.85rem" }}>
               This portal is strictly for salon management and staff.
