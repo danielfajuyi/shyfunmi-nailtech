@@ -1,4 +1,4 @@
-import 'dotenv/config';
+﻿import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -96,9 +96,11 @@ const pubSettings = () => {
 };
 
 /* ---------- seed admin ---------- */
-if (!db.users.some((u) => u.role === 'admin')) {
-  const email = (process.env.ADMIN_EMAIL || 'admin@shyfunminails.com').toLowerCase();
-  const password = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
+const targetAdminEmail = (process.env.ADMIN_EMAIL || 'shyfunmiinails@gmail.com').toLowerCase();
+const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
+if (!db.users.some((u) => u.email === targetAdminEmail && u.role === 'admin')) {
+  const email = targetAdminEmail;
+  const password = defaultAdminPassword;
   db.users.push({ id: uid(), name: 'Shyfunmi', email, phone: '', role: 'admin', hash: bcrypt.hashSync(password, 10), createdAt: new Date().toISOString() });
   save();
   console.log(`Admin account created: ${email} / ${password}  (change this password after signing in)`);
@@ -188,6 +190,19 @@ app.post('/api/auth/register', authLimit, (req, res) => {
   save();
   setCookie(res, u);
   res.status(201).json({ user: pub(u) });
+});
+
+app.post('/api/auth/admin-login', authLimit, (req, res) => {
+  const email = clean(req.body.email, 120).toLowerCase();
+  const u = db.users.find((x) => x.email === email);
+  if (!u || !bcrypt.compareSync(String(req.body.password || ''), u.hash)) {
+    return bad(res, 'Invalid admin email or password.', 401);
+  }
+  if (u.role !== 'admin') {
+    return bad(res, 'Access denied. This portal is restricted to salon administrators only.', 403);
+  }
+  setCookie(res, u);
+  res.json({ user: pub(u) });
 });
 
 app.post('/api/auth/login', authLimit, (req, res) => {
@@ -433,4 +448,5 @@ app.use((err, _req, res, _next) => bad(res, err.message || 'Something went wrong
 if (!process.env.VERCEL) app.listen(PORT, () => console.log(`Shyfunmi Nails running on http://localhost:${PORT}`));
 
 export default app;
+
 

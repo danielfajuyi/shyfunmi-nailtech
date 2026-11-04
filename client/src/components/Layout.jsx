@@ -35,6 +35,7 @@ export default function Layout() {
   }, []);
 
   const account = user ? (user.role === 'admin' ? '/admin' : '/account') : '/login';
+  const accountLabel = user ? (user.role === 'admin' ? 'Admin' : 'My account') : 'Sign in';
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
@@ -46,7 +47,7 @@ export default function Layout() {
           </nav>
           <div className="nav-actions">
             <button className="icon-btn" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}>{dark ? '☀' : '☾'}</button>
-            <Link className="link-quiet" to={account}>{user ? (user.role === 'admin' ? 'Dashboard' : 'My account') : 'Sign in'}</Link>
+            <Link className="link-quiet" to={account}>{accountLabel}</Link>
             <Link className="btn sm" to="/book">Book now</Link>
             <button className="burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(!open)}><i /><i /></button>
           </div>
@@ -54,7 +55,7 @@ export default function Layout() {
         <AnimatePresence>
           {open && (
             <motion.nav className="mobile" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} aria-label="Mobile">
-              {[...LINKS, [account, user ? 'My account' : 'Sign in']].map(([to, label]) => <NavLink key={to + label} to={to}>{label}</NavLink>)}
+              {[...LINKS, [account, accountLabel]].map(([to, label]) => <NavLink key={to + label} to={to}>{label}</NavLink>)}
               <Link className="btn" to="/book">Book now</Link>
             </motion.nav>
           )}
@@ -81,7 +82,18 @@ export default function Layout() {
           </div>
           <div>
             <h4>Account</h4>
-            {user ? <><Link to={account}>{user.role === 'admin' ? 'Dashboard' : 'My account'}</Link><button className="linklike" onClick={logout}>Sign out</button></> : <><Link to="/login">Sign in</Link><Link to="/register">Create account</Link></>}
+            {user ? (
+              <>
+                <Link to={user.role === 'admin' ? '/admin' : '/account'}>{user.role === 'admin' ? 'Admin Dashboard' : 'My account'}</Link>
+                <button className="linklike" onClick={logout}>Sign out</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">Sign in</Link>
+                <Link to="/register">Create account</Link>
+                <Link to="/admin/login" style={{ opacity: 0.6, fontSize: '0.85rem', marginTop: 6 }}>Admin portal</Link>
+              </>
+            )}
           </div>
         </div>
         <div className="container fine"><span>© {new Date().getFullYear()} {s.businessName}</span><span>Nails that transform confidence.</span></div>

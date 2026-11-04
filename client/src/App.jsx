@@ -12,6 +12,7 @@ import Contact from './pages/Contact.jsx';
 import Auth from './pages/Auth.jsx';
 import Account from './pages/Account.jsx';
 import Admin from './pages/Admin.jsx';
+import AdminLogin from './pages/AdminLogin.jsx';
 
 function Shell() {
   const { site } = useApp();
@@ -30,6 +31,7 @@ function Shell() {
         <Route path="account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      <Route path="admin/login" element={<AdminLogin />} />
       <Route path="admin" element={<Admin />} />
       <Route path="admin/:tab" element={<Admin />} />
     </Routes>

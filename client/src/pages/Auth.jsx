@@ -38,6 +38,11 @@ export default function Auth({ mode }) {
           <button className="btn" disabled={busy}>{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}</button>
         </form>
         <p className="muted center">{register ? <>Already have an account? <Link to="/login">Sign in</Link></> : <>New here? <Link to="/register">Create an account</Link></>}</p>
+        {!register && (
+          <p className="muted center" style={{ fontSize: '0.82rem', marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+            Salon staff or manager? <Link to="/admin/login" style={{ color: 'var(--accent)', fontWeight: 500 }}>Admin Sign In →</Link>
+          </p>
+        )}
       </div>
     </Page>
   );
