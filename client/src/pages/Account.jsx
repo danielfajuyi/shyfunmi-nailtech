@@ -7,7 +7,7 @@ import { useApp } from '../context.jsx';
 import { useLoad, useTitle } from '../hooks.js';
 import { dur, fmtDate, fmtTime, iso, money, waLink } from '../utils.js';
 
-const TABS = [['overview', 'Overview'], ['bookings', 'Bookings'], ['profile', 'Profile']];
+const TABS = [['overview', 'Overview'], ['bookings', 'Bookings'], ['profile', 'Profile'], ['settings', 'Settings']];
 
 // Generate ICS calendar file content
 function makeICS(b, businessName, address) {
@@ -56,16 +56,7 @@ export default function Account() {
 
       {tab === 'overview' && (
         <div className="accts-grid">
-          <div className="card">
-            <h3>Loyalty card</h3>
-            {L ? <>
-              <div className="stamps dark">{Array.from({ length: L.every }, (_, i) => {
-                const gift = i === L.every - 1;
-                return <span key={i} className={`stamp ${gift ? 'gift' : i < L.progress ? 'on' : ''}`}>{gift ? `${L.discount}%` : i + 1}</span>;
-              })}</div>
-              <p className="muted">{L.nextIsReward ? `Your next visit earns ${L.discount}% off.` : `${L.every - 1 - L.progress} more ${L.every - 1 - L.progress === 1 ? 'visit' : 'visits'} until your reward.`} {L.visits} completed so far.</p>
-            </> : <p className="muted">Loading…</p>}
-          </div>
+          <LoyaltyCard L={L} name={user.name} />
 
           <div className="card">
             <h3>Next appointment</h3>
@@ -108,8 +99,40 @@ export default function Account() {
         </div>
       )}
 
-      {tab === 'profile' && <Profile user={user} setUser={setUser} />}
+      {tab === 'profile' && <Profile user={user} setUser={setUser} bookings={bookings} L={L} />}
+      {tab === 'settings' && <Settings user={user} setUser={setUser} />}
     </Page>
+  );
+}
+
+function initials(name) {
+  return String(name || '').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'S';
+}
+
+function LoyaltyCard({ L, name }) {
+  if (!L) return <div className="card"><h3>Loyalty card</h3><p className="muted">Loading…</p></div>;
+  const left = Math.max(0, L.every - 1 - L.progress);
+  return (
+    <div className="loyalty-card">
+      <div className="loyalty-card-top">
+        <div>
+          <p className="loyalty-kicker">Member rewards</p>
+          <h3>Loyalty card</h3>
+        </div>
+        <span className="loyalty-mark">{L.discount}% off</span>
+      </div>
+      <p className="loyalty-name">{name}</p>
+      <div className="stamps dark">{Array.from({ length: L.every }, (_, i) => {
+        const gift = i === L.every - 1;
+        return <span key={i} className={`stamp ${gift ? 'gift' : i < L.progress ? 'on' : ''}`}>{gift ? `${L.discount}%` : i + 1}</span>;
+      })}</div>
+      <p className="loyalty-copy">
+        {L.nextIsReward
+          ? `Your next completed visit is a reward visit — ${L.discount}% off is applied automatically when you book.`
+          : `${left} more completed visit${left === 1 ? '' : 's'} until ${L.discount}% off.`}
+      </p>
+      <p className="muted loyalty-hint">How it works: each time the salon marks a visit as completed, a stamp is added. After {L.every} completed visits, your next booking receives {L.discount}% off. {L.visits} completed so far.</p>
+    </div>
   );
 }
 
@@ -208,28 +231,99 @@ function BookingItem({ b, cur, settings, reload }) {
   );
 }
 
-function Profile({ user, setUser }) {
-  const [f, setF] = useState({ name: user.name, phone: user.phone || '', currentPassword: '', newPassword: '' });
+function Profile({ user, setUser, bookings, L }) {
+  const [f, setF] = useState({ name: user.name, phone: user.phone || '' });
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const joined = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' }) : '';
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
   const save = async (e) => {
     e.preventDefault(); setBusy(true);
     try {
-      const r = await api.patch('/api/me', f.newPassword ? f : { name: f.name, phone: f.phone });
-      setUser(r.user); setF({ ...f, currentPassword: '', newPassword: '' }); toast('Profile saved');
+      const r = await api.patch('/api/me', { name: f.name, phone: f.phone });
+      setUser(r.user); toast('Profile saved');
     } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
   };
+
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await api.upload('/api/me/avatar', fd);
+      setUser(r.user); toast('Photo updated');
+    } catch (x) { toast(x.message, 'err'); } finally { setPhotoBusy(false); }
+  };
+
   return (
-    <form className="card form narrow" onSubmit={save}>
-      <div className="field"><label htmlFor="pn">Name</label><input id="pn" value={f.name} onChange={set('name')} /></div>
-      <div className="field"><label htmlFor="pe">Email</label><input id="pe" value={user.email} disabled /></div>
-      <div className="field"><label htmlFor="pp">Phone</label><input id="pp" type="tel" value={f.phone} onChange={set('phone')} /></div>
-      <h3>Change password</h3>
-      <div className="grid-2">
-        <div className="field"><label htmlFor="cp">Current password</label><input id="cp" type="password" value={f.currentPassword} onChange={set('currentPassword')} autoComplete="current-password" /></div>
-        <div className="field"><label htmlFor="np">New password</label><input id="np" type="password" value={f.newPassword} onChange={set('newPassword')} autoComplete="new-password" /></div>
+    <div className="profile-layout">
+      <section className="profile-hero">
+        <label className="avatar-wrap">
+          {user.avatar
+            ? <img src={user.avatar} alt="" className="avatar-img" />
+            : <span className="avatar-fallback">{initials(user.name)}</span>}
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPhoto} hidden />
+          <span className="avatar-edit">{photoBusy ? 'Uploading…' : 'Change photo'}</span>
+        </label>
+        <div>
+          <p className="loyalty-kicker">Client profile</p>
+          <h2 className="h1s sm" style={{ margin: '4px 0 8px' }}>{user.name}</h2>
+          <p className="muted" style={{ margin: 0 }}>{user.email}{user.phone ? ` · ${user.phone}` : ''}</p>
+          {joined && <p className="muted" style={{ margin: '6px 0 0' }}>Member since {joined}</p>}
+        </div>
+      </section>
+
+      <div className="profile-stats">
+        <div className="profile-stat"><small>Completed visits</small><b>{L?.visits ?? '—'}</b></div>
+        <div className="profile-stat"><small>Bookings</small><b>{bookings.length}</b></div>
+        <div className="profile-stat"><small>Next reward</small><b>{L?.nextIsReward ? `${L.discount}% off` : `${Math.max(0, (L?.every || 5) - 1 - (L?.progress || 0))} left`}</b></div>
       </div>
-      <button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
-    </form>
+
+      <form className="card form" onSubmit={save}>
+        <h3>Personal details</h3>
+        <p className="muted">Used on bookings and confirmation emails. Email cannot be changed.</p>
+        <div className="grid-2">
+          <div className="field"><label htmlFor="pn">Full name</label><input id="pn" value={f.name} onChange={set('name')} autoComplete="name" /></div>
+          <div className="field"><label htmlFor="pp">Phone</label><input id="pp" type="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="080…" /></div>
+        </div>
+        <div className="field"><label htmlFor="pe">Email</label><input id="pe" value={user.email} disabled /></div>
+        <button className="btn" disabled={busy}>{busy ? 'Saving…' : 'Save profile'}</button>
+      </form>
+    </div>
+  );
+}
+
+function Settings({ user, setUser }) {
+  const [f, setF] = useState({ currentPassword: '', newPassword: '' });
+  const [busy, setBusy] = useState(false);
+
+  const savePassword = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try {
+      const r = await api.patch('/api/me', { currentPassword: f.currentPassword, newPassword: f.newPassword });
+      setUser(r.user); setF({ currentPassword: '', newPassword: '' }); toast('Password updated');
+    } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="profile-layout">
+      <form className="card form" onSubmit={savePassword}>
+        <h3>Security</h3>
+        <p className="muted">{user.provider === 'google' ? 'This account can sign in with Google. Set a password if you also want email login.' : 'Change the password used to sign in with email.'}</p>
+        {user.provider !== 'google' && (
+          <div className="field"><label htmlFor="cp">Current password</label><input id="cp" type="password" value={f.currentPassword} onChange={(e) => setF({ ...f, currentPassword: e.target.value })} autoComplete="current-password" /></div>
+        )}
+        <div className="field"><label htmlFor="np">New password</label><input id="np" type="password" value={f.newPassword} onChange={(e) => setF({ ...f, newPassword: e.target.value })} autoComplete="new-password" placeholder="At least 8 characters" /></div>
+        <button className="btn" disabled={busy || f.newPassword.length < 8}>{busy ? 'Saving…' : 'Update password'}</button>
+      </form>
+      <div className="card form">
+        <h3>Emails from the salon</h3>
+        <p className="muted" style={{ marginBottom: 0 }}>When you book, you and the salon both receive a branded confirmation. You also get an email when a booking is confirmed, completed or cancelled. Contact-form messages go to the salon, and you receive a copy if you left an email.</p>
+        {!user.phone && <p className="muted" style={{ marginTop: 16 }}>Add a phone number on your Profile tab so the salon can reach you on WhatsApp.</p>}
+      </div>
+    </div>
   );
 }

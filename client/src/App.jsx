@@ -10,6 +10,8 @@ import Training from './pages/Training.jsx';
 import Book from './pages/Book.jsx';
 import Contact from './pages/Contact.jsx';
 import Auth from './pages/Auth.jsx';
+import Forgot from './pages/Forgot.jsx';
+import Reset from './pages/Reset.jsx';
 import Account from './pages/Account.jsx';
 import Admin from './pages/Admin.jsx';
 import AdminLogin from './pages/AdminLogin.jsx';
@@ -28,6 +30,8 @@ function Shell() {
         <Route path="contact" element={<Contact />} />
         <Route path="login" element={<Auth mode="login" />} />
         <Route path="register" element={<Auth mode="register" />} />
+        <Route path="forgot" element={<Forgot />} />
+        <Route path="reset" element={<Reset />} />
         <Route path="account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

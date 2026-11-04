@@ -8,17 +8,20 @@ import bcrypt from 'bcryptjs';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import { put, del } from '@vercel/blob';
 import { db, save, uid, refresh, settled } from './db.js';
-import { attach, need, adminOnly, setCookie, clearCookie, pub } from './auth.js';
-import { sendBookingConfirmation, sendAdminNewBooking, sendStatusUpdate, sendContactMessage } from './mailer.js';
+import { attach, need, adminOnly, setCookie, clearCookie, pub, appUrl } from './auth.js';
+import { sendBookingConfirmation, sendAdminNewBooking, sendStatusUpdate, sendContactMessage, sendContactConfirmation, sendPasswordReset } from './mailer.js';
+import { useCloudinary, uploadBuffer, destroyPublicId } from './cloudinary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5000;
-// Photos go to Vercel Blob when BLOB_READ_WRITE_TOKEN is set, otherwise to server/uploads (local development).
+const googleReady = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+// Photos go to Cloudinary when configured, then Vercel Blob, otherwise server/uploads (local).
 const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 const uploads = path.join(__dirname, 'uploads');
-if (!useBlob) fs.mkdirSync(uploads, { recursive: true });
+if (!useBlob && !process.env.VERCEL) fs.mkdirSync(uploads, { recursive: true });
 
 /* ---------- helpers ---------- */
 const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
@@ -101,7 +104,7 @@ const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
 if (!db.users.some((u) => u.email === targetAdminEmail && u.role === 'admin')) {
   const email = targetAdminEmail;
   const password = defaultAdminPassword;
-  db.users.push({ id: uid(), name: 'Shyfunmi', email, phone: '', role: 'admin', hash: bcrypt.hashSync(password, 10), createdAt: new Date().toISOString() });
+  db.users.push({ id: uid(), name: 'Shyfunmi', email, phone: '', role: 'admin', hash: bcrypt.hashSync(password, 10), avatar: '', provider: 'password', notifyEmail: true, createdAt: new Date().toISOString() });
   save();
   console.log(`Admin account created: ${email} / ${password}  (change this password after signing in)`);
 }
@@ -121,7 +124,9 @@ app.use(helmet({
   contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"],
     styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-    fontSrc: ['https://fonts.gstatic.com'], imgSrc: ["'self'", 'data:', 'blob:', 'https://*.public.blob.vercel-storage.com'], connectSrc: ["'self'"],
+    fontSrc: ['https://fonts.gstatic.com'],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https://*.public.blob.vercel-storage.com', 'https://res.cloudinary.com', 'https://lh3.googleusercontent.com'],
+    connectSrc: ["'self'"],
     upgradeInsecureRequests: null,
   } },
 }));
@@ -139,6 +144,7 @@ app.get('/api/public', (_req, res) => res.json({
   services: db.services.filter((s) => s.active).sort((a, b) => a.order - b.order),
   photos: db.photos,
   reviews: db.reviews.filter((r) => r.approved).slice(-12).reverse(),
+  auth: { google: googleReady },
 }));
 
 app.get('/api/availability', (req, res) => {
@@ -172,7 +178,8 @@ app.post('/api/contact', formLimit, (req, res) => {
   const msg = { id: uid(), name, email, phone, subject, message, read: false, createdAt: new Date().toISOString() };
   db.messages.push(msg);
   save();
-  sendContactMessage(msg).catch(() => {});
+  sendContactMessage(msg, db.settings).catch(() => {});
+  sendContactConfirmation(msg, db.settings).catch(() => {});
   res.status(201).json({ ok: true });
 });
 
@@ -184,7 +191,7 @@ app.post('/api/auth/register', authLimit, (req, res) => {
   if (digits(phone).length < 7) return bad(res, 'Enter a valid phone number.');
   if (String(req.body.password || '').length < 8) return bad(res, 'Password must be at least 8 characters.');
   if (db.users.some((u) => u.email === email)) return bad(res, 'An account with this email already exists.', 409);
-  const u = { id: uid(), name, email, phone, role: 'client', hash: bcrypt.hashSync(req.body.password, 10), createdAt: new Date().toISOString() };
+  const u = { id: uid(), name, email, phone, role: 'client', hash: bcrypt.hashSync(req.body.password, 10), avatar: '', provider: 'password', notifyEmail: true, createdAt: new Date().toISOString() };
   db.users.push(u);
   db.bookings.forEach((b) => { if (!b.userId && digits(b.phone) === digits(phone)) b.userId = u.id; }); // claim earlier guest bookings
   save();
@@ -195,7 +202,7 @@ app.post('/api/auth/register', authLimit, (req, res) => {
 app.post('/api/auth/admin-login', authLimit, (req, res) => {
   const email = clean(req.body.email, 120).toLowerCase();
   const u = db.users.find((x) => x.email === email);
-  if (!u || !bcrypt.compareSync(String(req.body.password || ''), u.hash)) {
+  if (!u || !u.hash || !bcrypt.compareSync(String(req.body.password || ''), u.hash)) {
     return bad(res, 'Invalid admin email or password.', 401);
   }
   if (u.role !== 'admin') {
@@ -207,12 +214,107 @@ app.post('/api/auth/admin-login', authLimit, (req, res) => {
 
 app.post('/api/auth/login', authLimit, (req, res) => {
   const u = db.users.find((x) => x.email === clean(req.body.email, 120).toLowerCase());
-  if (!u || !bcrypt.compareSync(String(req.body.password || ''), u.hash)) return bad(res, 'Email or password is incorrect.', 401);
+  if (!u) return bad(res, 'Email or password is incorrect.', 401);
+  if (!u.hash) return bad(res, 'This account uses Google. Sign in with Google, or use Forgot password to set a password.', 401);
+  if (!bcrypt.compareSync(String(req.body.password || ''), u.hash)) return bad(res, 'Email or password is incorrect.', 401);
   setCookie(res, u);
   res.json({ user: pub(u) });
 });
 app.post('/api/auth/logout', (_req, res) => { clearCookie(res); res.json({ ok: true }); });
 app.get('/api/auth/me', (req, res) => res.json({ user: pub(req.user) || null }));
+
+const googleRedirectUri = () => `${appUrl()}/api/auth/google/callback`;
+
+app.get('/api/auth/google', (req, res) => {
+  if (!googleReady) return bad(res, 'Google sign-in is not configured yet.', 503);
+  const next = clean(req.query.next, 200) || '/account';
+  const state = Buffer.from(JSON.stringify({ next: next.startsWith('/') ? next : '/account' })).toString('base64url');
+  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  url.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID);
+  url.searchParams.set('redirect_uri', googleRedirectUri());
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', 'openid email profile');
+  url.searchParams.set('state', state);
+  url.searchParams.set('prompt', 'select_account');
+  res.redirect(url.toString());
+});
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const fail = (msg) => res.redirect(`${appUrl()}/login?error=${encodeURIComponent(msg)}`);
+  if (!googleReady) return fail('Google sign-in is not configured.');
+  if (!req.query.code) return fail('Google sign-in was cancelled.');
+  let next = '/account';
+  try {
+    const parsed = JSON.parse(Buffer.from(String(req.query.state || ''), 'base64url').toString());
+    if (typeof parsed.next === 'string' && parsed.next.startsWith('/')) next = parsed.next;
+  } catch { /* keep default */ }
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: String(req.query.code),
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: googleRedirectUri(),
+        grant_type: 'authorization_code',
+      }),
+    });
+    const tokens = await tokenRes.json();
+    if (!tokens.id_token) return fail('Could not complete Google sign-in.');
+    const info = await (await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${tokens.id_token}`)).json();
+    if (!info.email) return fail('Google did not share an email address.');
+    const email = String(info.email).toLowerCase();
+    let u = db.users.find((x) => x.email === email || (info.sub && x.googleId === info.sub));
+    if (!u) {
+      u = {
+        id: uid(), name: clean(info.name, 80) || email.split('@')[0], email, phone: '',
+        role: 'client', hash: '', avatar: info.picture || '', googleId: info.sub,
+        provider: 'google', notifyEmail: true, createdAt: new Date().toISOString(),
+      };
+      db.users.push(u);
+    } else {
+      u.googleId = u.googleId || info.sub;
+      if (info.picture && !u.avatar) u.avatar = info.picture;
+    }
+    save();
+    setCookie(res, u);
+    res.redirect(`${appUrl()}${u.role === 'admin' ? '/admin' : next}`);
+  } catch {
+    return fail('Google sign-in failed. Try again.');
+  }
+});
+
+app.post('/api/auth/forgot', authLimit, async (req, res) => {
+  const email = clean(req.body.email, 120).toLowerCase();
+  const u = db.users.find((x) => x.email === email);
+  if (u) {
+    const token = crypto.randomBytes(32).toString('hex');
+    u.resetToken = bcrypt.hashSync(token, 10);
+    u.resetExpires = Date.now() + 60 * 60 * 1000;
+    save();
+    await sendPasswordReset(u, token, db.settings);
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/reset', authLimit, (req, res) => {
+  const email = clean(req.body.email, 120).toLowerCase();
+  const token = String(req.body.token || '');
+  const password = String(req.body.password || '');
+  if (password.length < 8) return bad(res, 'Password must be at least 8 characters.');
+  const u = db.users.find((x) => x.email === email);
+  if (!u || !u.resetToken || !u.resetExpires || Date.now() > u.resetExpires) {
+    return bad(res, 'This reset link is invalid or has expired.');
+  }
+  if (!bcrypt.compareSync(token, u.resetToken)) return bad(res, 'This reset link is invalid or has expired.');
+  u.hash = bcrypt.hashSync(password, 10);
+  u.resetToken = '';
+  u.resetExpires = 0;
+  save();
+  setCookie(res, u);
+  res.json({ user: pub(u) });
+});
 
 /* ---------- client ---------- */
 app.get('/api/me/bookings', need, (req, res) => {
@@ -249,13 +351,32 @@ app.patch('/api/me', need, (req, res) => {
   const u = req.user, b = req.body;
   if ('name' in b) { if (clean(b.name, 80).length < 2) return bad(res, 'Enter your name.'); u.name = clean(b.name, 80); }
   if ('phone' in b) { if (digits(b.phone).length < 7) return bad(res, 'Enter a valid phone number.'); u.phone = clean(b.phone, 25); }
+  if ('notifyEmail' in b) u.notifyEmail = !!b.notifyEmail;
   if (b.newPassword) {
-    if (!bcrypt.compareSync(String(b.currentPassword || ''), u.hash)) return bad(res, 'Current password is incorrect.');
     if (String(b.newPassword).length < 8) return bad(res, 'New password must be at least 8 characters.');
+    if (u.hash && !bcrypt.compareSync(String(b.currentPassword || ''), u.hash)) return bad(res, 'Current password is incorrect.');
     u.hash = bcrypt.hashSync(b.newPassword, 10);
   }
   save();
   res.json({ user: pub(u) });
+});
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (_r, f, cb) => cb(null, /^image\/(jpeg|png|webp|gif)$/.test(f.mimetype)),
+});
+app.post('/api/me/avatar', need, avatarUpload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return bad(res, 'Choose a photo.');
+    if (!useCloudinary) return bad(res, 'Photo storage is not configured yet.');
+    if (req.user.avatarPublicId) await destroyPublicId(req.user.avatarPublicId);
+    const up = await uploadBuffer(req.file.buffer, { folder: 'shyfunmi/avatars', publicId: `user-${req.user.id}`, mime: req.file.mimetype });
+    req.user.avatar = up.secure_url;
+    req.user.avatarPublicId = up.public_id;
+    save();
+    res.json({ user: pub(req.user) });
+  } catch (e) { next(e); }
 });
 
 app.post('/api/me/reviews', need, (req, res) => {
@@ -289,7 +410,7 @@ admin.get('/stats', (_req, res) => {
     pending: bs.filter((b) => b.status === 'pending').length,
     upcoming: bs.filter((b) => ['pending', 'confirmed'].includes(b.status) && b.date >= now.date).length,
     completed: done.length, clients: db.users.filter((u) => u.role === 'client').length,
-    revenue: done.reduce((n, b) => n + finalPrice(b), 0), months,
+    months,
     top: Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5),
     newEnrollments: db.enrollments.filter((e) => e.status === 'new').length,
     pendingReviews: db.reviews.filter((r) => !r.approved).length,
@@ -359,16 +480,22 @@ admin.post('/photos', upload.array('files', 12), async (req, res, next) => {
   try {
     if (!req.files?.length) return bad(res, 'Choose at least one image (JPG, PNG, WebP or GIF).');
     const category = clean(req.body.category, 40) || 'Latest';
+    const title = clean(req.body.title, 80);
+    const caption = clean(req.body.caption, 240);
     const added = await Promise.all(req.files.map(async (f) => {
       const name = uid() + path.extname(f.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '');
-      let url;
-      if (useBlob) {
+      let url, publicId = '';
+      if (useCloudinary) {
+        const up = await uploadBuffer(f.buffer, { folder: 'shyfunmi/gallery', publicId: name.replace(/\.[^.]+$/, ''), mime: f.mimetype });
+        url = up.secure_url;
+        publicId = up.public_id;
+      } else if (useBlob) {
         url = (await put(`gallery/${name}`, f.buffer, { access: 'public', contentType: f.mimetype })).url;
       } else {
         fs.writeFileSync(path.join(uploads, name), f.buffer);
         url = `/uploads/${name}`;
       }
-      return { id: uid(), url, category, createdAt: new Date().toISOString() };
+      return { id: uid(), url, publicId, category, title, caption, createdAt: new Date().toISOString() };
     }));
     db.photos.unshift(...added); save();
     res.status(201).json(added);
@@ -377,13 +504,17 @@ admin.post('/photos', upload.array('files', 12), async (req, res, next) => {
 admin.patch('/photos/:id', (req, res) => {
   const p = db.photos.find((x) => x.id === req.params.id);
   if (!p) return bad(res, 'Photo not found.', 404);
-  p.category = clean(req.body.category, 40) || p.category; save(); res.json(p);
+  if ('category' in req.body) p.category = clean(req.body.category, 40) || p.category;
+  if ('title' in req.body) p.title = clean(req.body.title, 80);
+  if ('caption' in req.body) p.caption = clean(req.body.caption, 240);
+  save(); res.json(p);
 });
 admin.delete('/photos/:id', async (req, res) => {
   const p = db.photos.find((x) => x.id === req.params.id);
   if (p) {
-    if (/^https?:/.test(p.url)) await del(p.url).catch(() => {});
-    else fs.unlink(path.join(uploads, path.basename(p.url)), () => {});
+    if (p.publicId) await destroyPublicId(p.publicId);
+    else if (useBlob && /^https?:/.test(p.url)) await del(p.url).catch(() => {});
+    else if (!/^https?:/.test(p.url)) fs.unlink(path.join(uploads, path.basename(p.url)), () => {});
   }
   db.photos = db.photos.filter((x) => x.id !== req.params.id); save(); res.json({ ok: true });
 });

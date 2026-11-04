@@ -2,17 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { createClient } from '@supabase/supabase-js';
 
 /*
   Storage:
-  - On Vercel (or anywhere KV_REST_API_URL / KV_REST_API_TOKEN are set) the whole database is one JSON
-    document kept in Upstash Redis.
-  - Locally, with no Redis variables, it is the file server/data/db.json as before.
+  - When SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set, the whole salon database
+    is one JSON document in the `app_state` table (run server/supabase.sql once).
+  - Locally, with no Supabase variables, it is the file server/data/db.json.
 */
-const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-export const remote = Boolean(REDIS_URL && REDIS_TOKEN);
-const KEY = 'shyfunmi:db';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const remote = Boolean(SUPABASE_URL && SUPABASE_KEY);
+const supabase = remote
+  ? createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null;
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const file = path.join(dir, 'db.json');
@@ -33,28 +36,19 @@ const defaults = () => ({
   },
 });
 
-async function redis(...cmd) {
-  const r = await fetch(REDIS_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(cmd),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error) throw new Error(j.error || `Redis error ${r.status}`);
-  return j.result;
-}
-
 async function readSaved() {
-  if (remote) { const raw = await redis('GET', KEY); return raw ? JSON.parse(raw) : null; }
+  if (remote) {
+    const { data, error } = await supabase.from('app_state').select('data').eq('id', 'main').maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.data && Object.keys(data.data).length ? data.data : null;
+  }
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
 }
 
-// The exported `db` object is never replaced, only refilled, so every import keeps seeing current data.
 const data = {};
 function apply(saved) {
   const base = defaults();
   const merged = { ...base, ...(saved || {}), settings: { ...base.settings, ...(saved?.settings || {}) } };
-  // Starter services. Prices are 0 ("Price on request") until the owner sets them in the admin dashboard.
   if (!merged.services.length) {
     merged.services = [
       ['Gel manicure', 'Long-lasting colour with careful prep and shaping.', 90],
@@ -65,6 +59,12 @@ function apply(saved) {
       ['Toe nails and pedicure', 'Clean, neat and polished from head to toe.', 60],
     ].map(([name, description, duration], order) => ({ id: uid(), name, description, duration, price: 0, active: true, order }));
   }
+  merged.users = (merged.users || []).map((u) => ({
+    avatar: '', provider: u.provider || 'password', notifyEmail: u.notifyEmail !== false, ...u,
+  }));
+  merged.photos = (merged.photos || []).map((p) => ({
+    title: p.title || '', caption: p.caption || '', publicId: p.publicId || '', ...p,
+  }));
   for (const k of Object.keys(data)) delete data[k];
   Object.assign(data, merged);
 }
@@ -82,28 +82,37 @@ export function flush() {
 
 export function save() {
   if (!remote) { clearTimeout(timer); timer = setTimeout(flush, 100); return; }
-  const body = JSON.stringify(data); // snapshot now
+  const snapshot = JSON.parse(JSON.stringify(data));
   inFlight++;
   pending = pending
-    .then(() => redis('SET', KEY, body))
-    .catch((e) => console.error('Could not save to Redis:', e.message))
+    .then(async () => {
+      const { error } = await supabase.from('app_state').upsert({
+        id: 'main',
+        data: snapshot,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw new Error(error.message);
+    })
+    .catch((e) => console.error('Could not save to Supabase:', e.message))
     .finally(() => { inFlight--; });
 }
 
-/** Resolves once every save() so far has reached the database. */
 export const settled = () => pending;
 
-/** On serverless every request may land on a different instance, so reload the data first. */
 export async function refresh() {
   if (!remote || inFlight) return;
   apply(await readSaved());
 }
 
-// If the first read fails this throws on purpose: better a 500 than overwriting real data with defaults.
 apply(await readSaved());
 if (!remote) {
+  if (process.env.VERCEL) {
+    console.error('Supabase is not configured. Login, bookings and the dashboard will not persist on Vercel. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+  }
   flush();
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { flush(); process.exit(0); });
+} else {
+  console.log('Database: Supabase connected');
 }
 
 export const db = data;

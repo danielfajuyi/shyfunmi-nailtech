@@ -9,7 +9,7 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(undefined); // undefined = still loading, null = signed out
 
   const reload = useCallback(() => api.get('/api/public').then(setSite)
-    .catch(() => setSite((p) => p || { settings: { hours: {}, blockedDates: [] }, services: [], photos: [], reviews: [] })), []);
+    .catch(() => setSite((p) => p || { settings: { hours: {}, blockedDates: [] }, services: [], photos: [], reviews: [], auth: { google: false } })), []);
 
   useEffect(() => {
     reload();

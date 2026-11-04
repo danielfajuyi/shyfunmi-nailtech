@@ -40,7 +40,10 @@ export default function Gallery() {
         <div className="masonry">
           {list.map((p, i) => (
             <Reveal key={p.id} delay={Math.min(i, 8) * 0.04} className="mitem">
-              <button className="tile" onClick={() => setOpen(i)} aria-label={`Open ${p.category} photo`}><img src={p.url} alt={`${p.category} nails`} loading="lazy" /></button>
+              <button className="tile" onClick={() => setOpen(i)} aria-label={`Open ${p.title || p.category} photo`}>
+                <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+                {(p.title || p.category) && <span className="tile-cap">{p.title || p.category}</span>}
+              </button>
             </Reveal>
           ))}
         </div>
@@ -53,7 +56,14 @@ export default function Gallery() {
       <AnimatePresence>
         {open !== null && list[open] && (
           <motion.div className="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(null)}>
-            <motion.img key={list[open].id} src={list[open].url} alt={`${list[open].category} nails`} initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={(e) => e.stopPropagation()} />
+            <motion.img key={list[open].id} src={list[open].url} alt={list[open].title || `${list[open].category} nails`} initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={(e) => e.stopPropagation()} />
+            {(list[open].title || list[open].caption) && (
+              <div className="lb-meta" onClick={(e) => e.stopPropagation()}>
+                {list[open].title && <strong>{list[open].title}</strong>}
+                {list[open].category && <span className="pill">{list[open].category}</span>}
+                {list[open].caption && <p>{list[open].caption}</p>}
+              </div>
+            )}
             <button className="lb-btn close" onClick={() => setOpen(null)} aria-label="Close">✕</button>
             {list.length > 1 && <>
               <button className="lb-btn prev" onClick={(e) => { e.stopPropagation(); setOpen((open - 1 + list.length) % list.length); }} aria-label="Previous">‹</button>

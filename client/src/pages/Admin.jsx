@@ -78,10 +78,9 @@ export default function Admin() {
 
 function Loading({ d, e }) { return e ? <p className="err">{e}</p> : !d ? <p className="muted">Loading…</p> : null; }
 
-function Overview({ cur }) {
+function Overview() {
   const { data: d, error } = useLoad('/api/admin/stats');
   if (!d) return <Loading d={d} e={error} />;
-  const max = Math.max(1, ...d.months.map((m) => m.total));
 
   return (
     <>
@@ -92,7 +91,6 @@ function Overview({ cur }) {
           ['Upcoming', d.upcoming, '/admin/calendar'],
           ['Completed visits', d.completed, null],
           ['Clients', d.clients, '/admin/clients'],
-          ['Revenue', money(d.revenue, cur) === 'Price on request' ? `${cur}0` : money(d.revenue, cur), null],
         ].map(([l, v, to]) => (
           <div className="stat" key={l}>
             <small>{l}</small>
@@ -112,17 +110,6 @@ function Overview({ cur }) {
       )}
 
       <div className="agrid">
-        <div className="card">
-          <h3>Revenue, last 6 months</h3>
-          <div className="bars">
-            {d.months.map((m) => (
-              <div key={m.month} className="bar">
-                <i style={{ height: `${(m.total / max) * 100}%` }} title={`${cur}${m.total.toLocaleString('en-NG')}`} />
-                <small>{m.month}</small>
-              </div>
-            ))}
-          </div>
-        </div>
         <div className="card">
           <h3>Popular services</h3>
           {d.top.length ? d.top.map((t) => <div className="line" key={t.name}><span>{t.name}</span><b>{t.count}</b></div>) : <p className="muted">No bookings yet.</p>}

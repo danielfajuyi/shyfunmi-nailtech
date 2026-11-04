@@ -63,7 +63,7 @@ async function shrink(file) {
 
 export function Gallery() {
   const { reload: reloadSite, site } = useApp();
-  const [cat, setCat] = useState('Cateye');
+  const [meta, setMeta] = useState({ category: 'Cateye', title: '', caption: '' });
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const photos = site.photos;
@@ -73,20 +73,26 @@ export function Gallery() {
     if (!files.length) return toast('Choose at least one photo', 'err');
     setBusy(true);
     try {
-      // One photo per request, shrunk first, because the host limits each request to about 4.5 MB.
       for (const f of files) {
-        const fd = new FormData(); fd.append('category', cat); fd.append('files', await shrink(f));
+        const fd = new FormData();
+        fd.append('category', meta.category);
+        fd.append('title', meta.title);
+        fd.append('caption', meta.caption);
+        fd.append('files', await shrink(f));
         await api.upload('/api/admin/photos', fd);
       }
-      setFiles([]); e.target.reset(); toast('Photos uploaded'); reloadSite();
+      setFiles([]); e.target.reset(); toast('Photos uploaded to Cloudinary'); reloadSite();
     } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
   };
   const del = async (id) => { if (confirm('Remove this photo?')) { await api.del(`/api/admin/photos/${id}`); reloadSite(); } };
-  const move = async (id, category) => { await api.patch(`/api/admin/photos/${id}`, { category }); reloadSite(); };
+  const patch = async (id, body) => { await api.patch(`/api/admin/photos/${id}`, body); reloadSite(); };
   return (
     <>
       <form className="card edit-grid" onSubmit={upload}>
-        <div className="field"><label htmlFor="gc">Style</label><input id="gc" list="cats" value={cat} onChange={(e) => setCat(e.target.value)} /><datalist id="cats">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
+        <h3 className="wide">Upload to gallery</h3>
+        <div className="field"><label htmlFor="gc">Tag / style</label><input id="gc" list="cats" value={meta.category} onChange={(e) => setMeta({ ...meta, category: e.target.value })} /><datalist id="cats">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
+        <div className="field"><label htmlFor="gt">Title</label><input id="gt" value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} placeholder="e.g. Blush cateye set" /></div>
+        <div className="field wide"><label htmlFor="gd">Caption / details</label><input id="gd" value={meta.caption} onChange={(e) => setMeta({ ...meta, caption: e.target.value })} placeholder="Shape, length, or client request" /></div>
         <div className="field wide"><label htmlFor="gf">Photos (JPG, PNG, WebP; up to 12 at once)</label><input id="gf" type="file" accept="image/*" multiple onChange={(e) => setFiles(e.target.files)} /></div>
         <button className="btn sm" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button>
       </form>
@@ -94,8 +100,10 @@ export function Gallery() {
       <div className="thumbs">
         {photos.map((p) => (
           <div className="th" key={p.id}>
-            <img src={p.url} alt={`${p.category} nails`} loading="lazy" />
-            <input list="cats" defaultValue={p.category} aria-label="Style" onBlur={(e) => e.target.value !== p.category && move(p.id, e.target.value)} />
+            <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+            <input list="cats" defaultValue={p.category} aria-label="Tag" onBlur={(e) => e.target.value !== p.category && patch(p.id, { category: e.target.value })} />
+            <input defaultValue={p.title || ''} placeholder="Title" aria-label="Title" onBlur={(e) => e.target.value !== (p.title || '') && patch(p.id, { title: e.target.value })} />
+            <input defaultValue={p.caption || ''} placeholder="Details" aria-label="Caption" onBlur={(e) => e.target.value !== (p.caption || '') && patch(p.id, { caption: e.target.value })} />
             <button className="x" onClick={() => del(p.id)} aria-label="Remove photo">✕</button>
           </div>
         ))}
