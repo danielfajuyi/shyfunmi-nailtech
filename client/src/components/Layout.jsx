@@ -66,7 +66,7 @@ export default function Layout() {
         <div className="container foot-grid">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-              <Logo size={34} light />
+              <Logo size={34} className="footer-logo" />
               <h3 style={{ margin: 0 }}>{s.businessName}</h3>
             </div>
             <p>{s.tagline}.</p>
