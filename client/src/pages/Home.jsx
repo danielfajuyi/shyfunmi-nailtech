@@ -142,11 +142,16 @@ function HeroArt() {
   );
 }
 
+const isVideoUrl = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || url.includes('video/upload/');
+
 export default function Home() {
   useTitle('');
   const { site } = useApp();
   const s = site.settings;
-  const photos = site.photos.slice(0, 6);
+  // Sort all photos & videos based on latest upload first (createdAt desc)
+  const recentWork = [...(site.photos || [])]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 6);
   return (
     <Page>
       <section className="hero container">
@@ -202,8 +207,27 @@ export default function Home() {
       <section className="section container">
         <Reveal className="head"><h2>Recent work</h2><Link className="btn ghost" to="/gallery">Full gallery</Link></Reveal>
         <div className="strip">
-          {photos.length
-            ? photos.map((p, i) => <Reveal key={p.id} delay={i * 0.05} className="tile"><img src={p.url} alt={`${p.category} nails`} loading="lazy" /></Reveal>)
+          {recentWork.length
+            ? recentWork.map((p, i) => (
+                <Reveal key={p.id} delay={i * 0.05} className="tile">
+                  {isVideoUrl(p.url) ? (
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      <video
+                        src={p.url}
+                        muted
+                        playsInline
+                        loop
+                        autoPlay
+                        preload="metadata"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <span className="video-badge">▶ Video</span>
+                    </div>
+                  ) : (
+                    <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+                  )}
+                </Reveal>
+              ))
             : [0, 1, 2, 3, 4, 5].map((i) => <Reveal key={i} delay={i * 0.05}><Placeholder i={i} /></Reveal>)}
         </div>
       </section>

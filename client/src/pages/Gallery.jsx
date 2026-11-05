@@ -7,25 +7,7 @@ import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
 
 /* Determine if a URL is a video */
-const isVideo = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || (url.includes('cloudinary') && url.includes('/video/'));
-
-/* Static local gallery assets (from /gallary folder in public) */
-const LOCAL_ASSETS = [
-  { id: 'local-1',  url: '/gallary/asset1.jpeg', category: 'Latest', title: '', caption: '' },
-  { id: 'local-2',  url: '/gallary/asset2.jpg',  category: 'Latest', title: '', caption: '' },
-  { id: 'local-3',  url: '/gallary/asset4.png',  category: 'Latest', title: '', caption: '' },
-  { id: 'local-4',  url: '/gallary/asset5.webp', category: 'Latest', title: '', caption: '' },
-  { id: 'local-v3', url: '/gallary/asset3.mp4',  category: 'Videos', title: '', caption: '' },
-  { id: 'local-v6', url: '/gallary/asset6.mp4',  category: 'Videos', title: '', caption: '' },
-  { id: 'local-v7', url: '/gallary/asset7.mp4',  category: 'Videos', title: '', caption: '' },
-  { id: 'local-v8', url: '/gallary/asset8.mp4',  category: 'Videos', title: '', caption: '' },
-  { id: 'local-v9', url: '/gallary/asset9.mp4',  category: 'Videos', title: '', caption: '' },
-  { id: 'local-v10',url: '/gallary/asset10.mp4', category: 'Videos', title: '', caption: '' },
-  { id: 'local-v11',url: '/gallary/asset11.mp4', category: 'Videos', title: '', caption: '' },
-  { id: 'local-v12',url: '/gallary/asset12.mp4', category: 'Videos', title: '', caption: '' },
-  { id: 'local-v13',url: '/gallary/asset13.mp4', category: 'Videos', title: '', caption: '' },
-  { id: 'local-v14',url: '/gallary/asset14.mp4', category: 'Videos', title: '', caption: '' },
-];
+const isVideo = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || url.includes('video/upload/');
 
 /* Video tile with play overlay */
 function VideoTile({ src, onClick, label }) {
@@ -82,9 +64,10 @@ function LightboxVideo({ src }) {
 export default function Gallery() {
   useTitle('Gallery');
   const { site } = useApp();
-  // Merge DB photos with local static assets (deduplicated by id)
-  const dbPhotos = site.photos;
-  const allItems = [...dbPhotos, ...LOCAL_ASSETS.filter(a => !dbPhotos.some(p => p.url === a.url))];
+  // Sort all gallery photos & videos based on latest upload first
+  const allItems = [...(site.photos || [])].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
 
   const cats = ['All', 'Photos', 'Videos', ...new Set(allItems.filter(p => !['Latest', 'Videos'].includes(p.category)).map(p => p.category))];
   const [cat, setCat] = useState('All');
