@@ -6,6 +6,7 @@ const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
+const BUSINESS_NAME = 'Shyfunmi Nails';
 
 let transport = null;
 
@@ -17,9 +18,28 @@ function getTransport() {
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
+      pool: true,
+      tls: { rejectUnauthorized: true },
     });
   }
   return transport;
+}
+
+function toPlainText(html) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/td>/gi, '  ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 async function send(opts) {
@@ -28,10 +48,15 @@ async function send(opts) {
     console.log('[mailer] SMTP not configured — email skipped:', opts.subject);
     return;
   }
+  const html = opts.html || '';
   try {
     await t.sendMail({
-      from: `"Shyfunmi Nails" <${SMTP_USER}>`,
+      from: `"${BUSINESS_NAME}" <${SMTP_USER}>`,
+      replyTo: opts.replyTo || `"${BUSINESS_NAME}" <${SMTP_USER}>`,
       ...opts,
+      html,
+      // Provide a clean plain-text alternative (crucial for spam filters)
+      text: opts.text || toPlainText(html),
     });
   } catch (e) {
     console.error('[mailer] Failed to send email:', e.message);
@@ -54,7 +79,7 @@ function esc(s) {
 
 function brand(settings = {}) {
   return {
-    name: settings.businessName || 'Shyfunmi Nails',
+    name: settings.businessName || BUSINESS_NAME,
     tagline: settings.tagline || 'Your confidence starts here',
     address: settings.address || 'Peter Odili Road, Port Harcourt',
     whatsapp: settings.whatsapp || '',
@@ -62,21 +87,28 @@ function brand(settings = {}) {
   };
 }
 
-const base = (content, settings = {}) => {
+const base = (content, settings = {}, previewText = '') => {
   const b = brand(settings);
   const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
+  // previewText shown in inbox before email is opened — improves open rate & trust signal
+  const preview = previewText || b.tagline;
   return `<!DOCTYPE html>
-<html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <title>${esc(b.name)}</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#F7F5F8;font-family:'Hanken Grotesk',Georgia,system-ui,sans-serif;color:#17131B;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(b.tagline)}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F8;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#F7F5F8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#17131B;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <!-- Preview text (hidden, shows in inbox) -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${esc(preview)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F5F8;padding:32px 16px;">
     <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #E7E1EA;border-radius:24px;overflow:hidden;">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #E7E1EA;border-radius:24px;overflow:hidden;">
+        <!-- Header -->
         <tr>
           <td style="background:#2A1626;color:#F7F5F8;padding:36px 40px 28px;">
             <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#E08BB4;">Nail studio · Port Harcourt</p>
@@ -84,14 +116,17 @@ const base = (content, settings = {}) => {
             <p style="margin:8px 0 0;opacity:0.7;font-size:14px;">${esc(b.tagline)}</p>
           </td>
         </tr>
+        <!-- Body -->
         <tr><td style="padding:32px 40px;">${content}</td></tr>
+        <!-- Footer -->
         <tr>
           <td style="padding:20px 40px;background:#F7F5F8;border-top:1px solid #E7E1EA;font-size:12px;color:#6C6473;">
             <p style="margin:0 0 6px;"><strong style="color:#17131B;">${esc(b.name)}</strong> · ${esc(b.address)}</p>
-            <p style="margin:0;">
+            <p style="margin:0 0 6px;">
               <a href="${esc(b.site)}" style="color:#8E3B6A;text-decoration:none;">Visit the salon website</a>
               ${wa ? ` · <a href="${wa}" style="color:#8E3B6A;text-decoration:none;">WhatsApp</a>` : ''}
             </p>
+            <p style="margin:0;font-size:11px;color:#9CA3AF;">You are receiving this email because you made a booking or enquiry at ${esc(b.name)}. If this wasn't you, please ignore this email.</p>
           </td>
         </tr>
       </table>
@@ -138,17 +173,19 @@ export async function sendBookingConfirmation(booking, settings) {
   if (!booking.email) return;
   const b = brand(settings);
   const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
+  const firstName = esc(booking.name.split(' ')[0]);
+  const preview = `Hi ${firstName}, we've received your booking for ${booking.serviceName} on ${fmtDate(booking.date)}.`;
   await send({
     to: booking.email,
     subject: `Booking received – ${booking.serviceName} on ${fmtDate(booking.date)}`,
     html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${esc(booking.name.split(' ')[0])}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
       <p style="margin:0 0 8px;line-height:1.6;">We've received your booking request. Shyfunmi will confirm your appointment shortly — you'll get another email when it's confirmed.</p>
       ${bookingRows(booking, settings)}
       <p style="margin:16px 0 0;">Status ${pill('pending', 'Pending confirmation')}</p>
       ${wa ? btn(wa, 'Message on WhatsApp') : ''}
       ${btn(`${b.site}/account`, 'View my bookings', true)}
-    `, settings),
+    `, settings, preview),
   });
 }
 
@@ -158,11 +195,12 @@ export async function sendStatusUpdate(booking, settings) {
   const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
   const labels = { confirmed: 'Your appointment is confirmed!', completed: 'Thanks for visiting us!', cancelled: 'Your booking has been cancelled.' };
   const label = labels[booking.status] || `Booking ${booking.status}`;
+  const firstName = esc(booking.name.split(' ')[0]);
   await send({
     to: booking.email,
     subject: `${label} – ${booking.serviceName} at ${b.name}`,
     html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${esc(booking.name.split(' ')[0])}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
       ${booking.status === 'confirmed' ? '<p style="line-height:1.6;">Your appointment is confirmed. We\'ll see you soon — please arrive a few minutes early.</p>' : ''}
       ${booking.status === 'completed' ? '<p style="line-height:1.6;">Thank you for visiting Shyfunmi Nails. We hope you loved your nails. Leave a review from your account — it means a lot. This visit also stamps your loyalty card.</p>' : ''}
       ${booking.status === 'cancelled' ? '<p style="line-height:1.6;">Your appointment has been cancelled. You can rebook on our website anytime.</p>' : ''}
@@ -170,7 +208,7 @@ export async function sendStatusUpdate(booking, settings) {
       <p style="margin:16px 0 0;">Status ${pill(booking.status)}</p>
       ${booking.status !== 'cancelled' && wa ? btn(wa, 'Message on WhatsApp') : ''}
       ${booking.status === 'cancelled' ? btn(`${b.site}/book`, 'Book another appointment', true) : btn(`${b.site}/account`, 'Open my account', true)}
-    `, settings),
+    `, settings, label),
   });
 }
 
@@ -199,7 +237,7 @@ export async function sendAdminNewBooking(booking, settings) {
       </table>
       ${n ? btn(`https://wa.me/${n}`, 'WhatsApp client') : ''}
       ${btn(`${b.site}/admin/bookings`, 'Open dashboard', true)}
-    `, settings),
+    `, settings, `New booking from ${booking.name} for ${booking.serviceName}`),
   });
 }
 
@@ -221,39 +259,41 @@ export async function sendContactMessage(msg, settings = {}) {
       <p style="background:#F7F5F8;border-radius:16px;padding:16px 20px;font-size:14px;line-height:1.7;margin:18px 0 0;">${esc(msg.message).replace(/\n/g, '<br>')}</p>
       ${msg.email ? btn(`mailto:${msg.email}`, 'Reply by email', true) : ''}
       ${btn(`${b.site}/admin/messages`, 'Open messages')}
-    `, settings),
+    `, settings, `New contact from ${msg.name}: ${msg.subject || 'General enquiry'}`),
   });
 }
 
 export async function sendContactConfirmation(msg, settings = {}) {
   if (!msg.email) return;
   const b = brand(settings);
+  const firstName = esc(msg.name.split(' ')[0]);
   await send({
     to: msg.email,
     subject: `We received your message – ${b.name}`,
     html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${esc(msg.name.split(' ')[0])}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
       <p style="line-height:1.6;">Thank you for writing to ${esc(b.name)}. We have your message and will reply as soon as we can.</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${row('Subject', esc(msg.subject || 'General enquiry'))}
       </table>
       <p style="background:#F7F5F8;border-radius:16px;padding:16px 20px;font-size:14px;line-height:1.7;margin:18px 0 0;">${esc(msg.message).replace(/\n/g, '<br>')}</p>
       ${btn(b.site, 'Back to the website', true)}
-    `, settings),
+    `, settings, `We got your message, ${firstName}. We'll be in touch soon.`),
   });
 }
 
 export async function sendPasswordReset(user, token, settings = {}) {
   const b = brand(settings);
   const link = `${b.site}/reset?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
+  const firstName = esc(user.name.split(' ')[0]);
   await send({
     to: user.email,
     subject: `Reset your ${b.name} password`,
     html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${esc(user.name.split(' ')[0])}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
       <p style="line-height:1.6;">We received a request to reset the password for your ${esc(b.name)} account. This link expires in 1 hour.</p>
       ${btn(link, 'Choose a new password', true)}
       <p style="margin-top:24px;font-size:13px;color:#6C6473;">If you did not ask for this, you can ignore this email. Your password stays the same.</p>
-    `, settings),
+    `, settings, `Password reset request for your ${b.name} account`),
   });
 }
