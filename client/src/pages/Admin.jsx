@@ -51,7 +51,7 @@ export default function Admin() {
   return (
     <div className="admin">
       <aside className={`side ${menu ? 'open' : ''}`}>
-        <Link to="/" className="logo"><Logo size={22} /> <span>Shyfunmi</span></Link>
+        <Link to="/" className="logo"><Logo size={28} /> <span>Shyfunmi</span></Link>
         <nav>
           {TABS.map(([k, l]) => (
             <Link key={k} to={`/admin/${k}`} className={tab === k ? 'on' : ''} onClick={() => setMenu(false)}>

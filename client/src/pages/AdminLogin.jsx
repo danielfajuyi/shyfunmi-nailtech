@@ -44,7 +44,7 @@ export default function AdminLogin() {
         </div>
 
         <div className="admin-login-brand">
-          <Logo size={28} />
+          <Logo size={48} light />
           <h2>Shyfunmi Nails</h2>
           <p className="muted">Administrative access & management system</p>
         </div>

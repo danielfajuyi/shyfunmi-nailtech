@@ -41,7 +41,7 @@ export default function Layout() {
       <a className="skip" href="#main">Skip to content</a>
       <header className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="container nav-in">
-          <Link to="/" className="logo"><Logo /> <span>{s.businessName || 'Shyfunmi Nails'}</span></Link>
+          <Link to="/" className="logo"><Logo size={32} /> <span>{s.businessName || 'Shyfunmi Nails'}</span></Link>
           <nav className="links" aria-label="Main">
             {LINKS.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
           </nav>
@@ -65,7 +65,10 @@ export default function Layout() {
       <footer className="footer">
         <div className="container foot-grid">
           <div>
-            <h3>{s.businessName}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <Logo size={34} light />
+              <h3 style={{ margin: 0 }}>{s.businessName}</h3>
+            </div>
             <p>{s.tagline}.</p>
           </div>
           <div>

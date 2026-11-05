@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Page from "../components/Page.jsx";
+import Logo from "../components/Logo.jsx";
 import { api } from "../api.js";
 import { useApp } from "../context.jsx";
 import { useTitle } from "../hooks.js";
@@ -68,6 +69,9 @@ export default function Auth({ mode }) {
   return (
     <Page className="container section page-top">
       <div className="auth card">
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+          <Logo size={46} />
+        </div>
         <h1 className="h1s sm">
           {register ? "Create your account" : "Welcome back"}
         </h1>

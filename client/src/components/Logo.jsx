@@ -1,8 +1,22 @@
-export default function Logo({ size = 26 }) {
+import markUrl from '../assets/logo-mark.png';
+import fullUrl from '../assets/logo-full.png';
+
+export default function Logo({ size = 30, full = false, light = false, className = '', alt = 'Shyfunmi Nails' }) {
+  const src = full ? fullUrl : markUrl;
+  const height = size;
+  // logo-mark aspect ratio is 384 / 440 = ~0.87
+  // logo-full aspect ratio is 784 / 580 = ~1.35
+  const width = full ? Math.round(size * 1.35) : Math.round(size * (384 / 440));
+
   return (
-    <svg width={size} height={size * 1.15} viewBox="0 0 40 46" fill="none" aria-hidden="true">
-      <path d="M22 3c-6-2-11 3-9 9 1 4 6 6 9 9 4 4 2 11-4 13-5 2-10-2-9-7" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-      <path d="M10 30c4 8 18 10 24 0-2 9-8 14-16 14S6 38 10 30z" fill="currentColor" />
-    </svg>
+    <img
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      className={`site-logo ${light ? 'light' : ''} ${className}`.trim()}
+      style={{ width: `${width}px`, height: `${height}px` }}
+      loading="eager"
+    />
   );
 }
