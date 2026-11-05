@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { Placeholder } from '../components/Nail.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
 import { dur, money } from '../utils.js';
+import VideoModal from '../components/VideoModal.jsx';
+import VideoCard from '../components/VideoCard.jsx';
 const HEAD = ['Your', 'confidence', 'starts', 'here.'];
 const STYLES = ['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails'];
 const STEPS = [
@@ -148,6 +151,7 @@ export default function Home() {
   useTitle('');
   const { site } = useApp();
   const s = site.settings;
+  const [activeVideo, setActiveVideo] = useState(null);
   // Sort all photos & videos based on latest upload first (createdAt desc)
   const recentWork = [...(site.photos || [])]
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
@@ -209,28 +213,45 @@ export default function Home() {
         <div className="strip">
           {recentWork.length
             ? recentWork.map((p, i) => (
-                <Reveal key={p.id} delay={i * 0.05} className="tile">
+                <Reveal key={p.id} delay={i * 0.05} style={{ height: '100%' }}>
                   {isVideoUrl(p.url) ? (
-                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                      <video
-                        src={p.url}
-                        muted
-                        playsInline
-                        loop
-                        autoPlay
-                        preload="metadata"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                      <span className="video-badge">▶ Video</span>
-                    </div>
+                    <VideoCard
+                      video={p}
+                      onClick={() => setActiveVideo(p)}
+                    />
                   ) : (
-                    <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+                    <Link to="/gallery" className="tile" aria-label={`View ${p.title || p.category} in gallery`}>
+                      <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+                      {(p.title || p.category) && <span className="tile-cap">{p.title || p.category}</span>}
+                    </Link>
                   )}
                 </Reveal>
               ))
             : [0, 1, 2, 3, 4, 5].map((i) => <Reveal key={i} delay={i * 0.05}><Placeholder i={i} /></Reveal>)}
         </div>
       </section>
+
+      {/* Cinematic Video Modal on Homepage */}
+      <AnimatePresence>
+        {activeVideo && (
+          <VideoModal
+            item={activeVideo}
+            onClose={() => setActiveVideo(null)}
+            onPrev={() => {
+              const videosOnly = recentWork.filter(x => isVideoUrl(x.url));
+              const idx = videosOnly.findIndex(v => v.id === activeVideo.id);
+              if (idx > -1) setActiveVideo(videosOnly[(idx - 1 + videosOnly.length) % videosOnly.length]);
+            }}
+            onNext={() => {
+              const videosOnly = recentWork.filter(x => isVideoUrl(x.url));
+              const idx = videosOnly.findIndex(v => v.id === activeVideo.id);
+              if (idx > -1) setActiveVideo(videosOnly[(idx + 1) % videosOnly.length]);
+            }}
+            hasPrev={recentWork.filter(x => isVideoUrl(x.url)).length > 1}
+            hasNext={recentWork.filter(x => isVideoUrl(x.url)).length > 1}
+          />
+        )}
+      </AnimatePresence>
 
       <section className="container section">
         <Reveal className="loyal">

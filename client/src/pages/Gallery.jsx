@@ -1,65 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { Placeholder } from '../components/Nail.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
+import VideoCard from '../components/VideoCard.jsx';
+import VideoModal from '../components/VideoModal.jsx';
+import { CloseIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons.jsx';
 
 /* Determine if a URL is a video */
 const isVideo = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || url.includes('video/upload/');
-
-/* Video tile with play overlay */
-function VideoTile({ src, onClick, label }) {
-  const ref = useRef(null);
-  const [playing, setPlaying] = useState(false);
-
-  const toggle = (e) => {
-    e.stopPropagation();
-    if (!ref.current) return;
-    if (ref.current.paused) { ref.current.play(); setPlaying(true); }
-    else { ref.current.pause(); setPlaying(false); }
-  };
-
-  return (
-    <button className="tile video-tile" onClick={onClick} aria-label={label || 'Open video'}>
-      <video
-        ref={ref}
-        src={src}
-        muted
-        playsInline
-        loop
-        preload="metadata"
-        className="tile-video"
-        onEnded={() => setPlaying(false)}
-      />
-      <div className="video-overlay" onClick={toggle}>
-        <span className="video-play-btn" aria-label={playing ? 'Pause' : 'Play'}>
-          {playing ? (
-            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><polygon points="5,3 19,12 5,21"/></svg>
-          )}
-        </span>
-      </div>
-      <span className="video-badge">▶ Video</span>
-    </button>
-  );
-}
-
-/* Lightbox video player */
-function LightboxVideo({ src }) {
-  return (
-    <video
-      src={src}
-      controls
-      autoPlay
-      playsInline
-      className="lb-video"
-      onClick={(e) => e.stopPropagation()}
-    />
-  );
-}
 
 export default function Gallery() {
   useTitle('Gallery');
@@ -71,7 +22,7 @@ export default function Gallery() {
 
   const cats = ['All', 'Photos', 'Videos', ...new Set(allItems.filter(p => !['Latest', 'Videos'].includes(p.category)).map(p => p.category))];
   const [cat, setCat] = useState('All');
-  const [open, setOpen] = useState(null);
+  const [openIndex, setOpenIndex] = useState(null);
 
   const list = allItems.filter((p) => {
     if (cat === 'All') return true;
@@ -80,21 +31,23 @@ export default function Gallery() {
     return p.category === cat;
   });
 
+  const activeItem = openIndex !== null ? list[openIndex] : null;
+
   useEffect(() => {
-    if (open === null) return;
+    if (openIndex === null) return;
     const lenis = window.__lenis;
     lenis?.stop();
     const key = (e) => {
-      if (e.key === 'Escape') setOpen(null);
-      if (e.key === 'ArrowRight') setOpen((i) => (i + 1) % list.length);
-      if (e.key === 'ArrowLeft') setOpen((i) => (i - 1 + list.length) % list.length);
+      if (e.key === 'Escape') setOpenIndex(null);
+      if (e.key === 'ArrowRight') setOpenIndex((i) => (i + 1) % list.length);
+      if (e.key === 'ArrowLeft') setOpenIndex((i) => (i - 1 + list.length) % list.length);
     };
     window.addEventListener('keydown', key);
     return () => { window.removeEventListener('keydown', key); lenis?.start(); };
-  }, [open, list.length]);
+  }, [openIndex, list.length]);
 
   return (
-    <Page className="container section page-top">
+    <Page className="container section page-top gallery-page-wrap">
       <Reveal>
         <h1 className="h1s">Gallery</h1>
         <p className="lead">A look at the sets clients ask for most.</p>
@@ -103,72 +56,113 @@ export default function Gallery() {
       {/* Filter tabs */}
       <div className="filters" role="group" aria-label="Filter by style">
         {cats.map((c) => (
-          <button key={c} className={`chip ${c === cat ? 'on' : ''}`} onClick={() => { setCat(c); setOpen(null); }}>
+          <button
+            key={c}
+            className={`chip ${c === cat ? 'on' : ''}`}
+            onClick={() => { setCat(c); setOpenIndex(null); }}
+          >
             {c === 'Videos' ? '▶ Videos' : c}
           </button>
         ))}
       </div>
 
-      {/* Grid */}
+      {/* Grid container with mobile-safe layout */}
       {list.length ? (
-        <div className="masonry">
+        <div className="masonry gallery-grid-fixed">
           {list.map((p, i) => (
-            <Reveal key={p.id} delay={Math.min(i, 8) * 0.04} className="mitem">
+            <div key={p.id} className="mitem">
               {isVideo(p.url) ? (
-                <VideoTile src={p.url} onClick={() => setOpen(i)} label={p.title || 'Open video'} />
+                <VideoCard
+                  video={p}
+                  onClick={() => setOpenIndex(i)}
+                />
               ) : (
-                <button className="tile" onClick={() => setOpen(i)} aria-label={`Open ${p.title || p.category} photo`}>
+                <button
+                  className="tile photo-tile"
+                  onClick={() => setOpenIndex(i)}
+                  aria-label={`Open ${p.title || p.category} photo`}
+                >
                   <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
-                  {(p.title || p.category) && <span className="tile-cap">{p.title || p.category}</span>}
+                  <div className="tile-cap">
+                    <span>{p.title || p.category}</span>
+                  </div>
                 </button>
               )}
-            </Reveal>
+            </div>
           ))}
         </div>
       ) : (
         <>
-          <div className="strip big">{[0, 1, 2, 3, 4, 5].map((i) => <Reveal key={i} delay={i * 0.05}><Placeholder i={i} /></Reveal>)}</div>
+          <div className="strip big">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Reveal key={i} delay={i * 0.05}><Placeholder i={i} /></Reveal>
+            ))}
+          </div>
           <p className="muted">Fresh photos are on the way. Follow on Instagram and TikTok to see the latest sets.</p>
         </>
       )}
 
-      {/* Lightbox */}
+      {/* Cinematic Modal (Video or Photo) */}
       <AnimatePresence>
-        {open !== null && list[open] && (
+        {activeItem && isVideo(activeItem.url) && (
+          <VideoModal
+            item={activeItem}
+            onClose={() => setOpenIndex(null)}
+            onPrev={() => setOpenIndex((openIndex - 1 + list.length) % list.length)}
+            onNext={() => setOpenIndex((openIndex + 1) % list.length)}
+            hasPrev={list.length > 1}
+            hasNext={list.length > 1}
+          />
+        )}
+
+        {activeItem && !isVideo(activeItem.url) && (
           <motion.div
             className="lightbox"
             role="dialog"
             aria-modal="true"
-            aria-label="Media viewer"
+            aria-label="Photo viewer"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setOpen(null)}
+            onClick={() => setOpenIndex(null)}
           >
-            {isVideo(list[open].url) ? (
-              <LightboxVideo src={list[open].url} />
-            ) : (
-              <motion.img
-                key={list[open].id}
-                src={list[open].url}
-                alt={list[open].title || `${list[open].category} nails`}
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-            {(list[open].title || list[open].caption) && (
+            <motion.img
+              key={activeItem.id}
+              src={activeItem.url}
+              alt={activeItem.title || `${activeItem.category} nails`}
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            {(activeItem.title || activeItem.caption || activeItem.category) && (
               <div className="lb-meta" onClick={(e) => e.stopPropagation()}>
-                {list[open].title && <strong>{list[open].title}</strong>}
-                {list[open].category && <span className="pill">{list[open].category}</span>}
-                {list[open].caption && <p>{list[open].caption}</p>}
+                {activeItem.title && <strong>{activeItem.title}</strong>}
+                {activeItem.category && <span className="pill">{activeItem.category}</span>}
+                {activeItem.caption && <p>{activeItem.caption}</p>}
               </div>
             )}
-            <button className="lb-btn close" onClick={() => setOpen(null)} aria-label="Close">✕</button>
-            {list.length > 1 && <>
-              <button className="lb-btn prev" onClick={(e) => { e.stopPropagation(); setOpen((open - 1 + list.length) % list.length); }} aria-label="Previous">‹</button>
-              <button className="lb-btn next" onClick={(e) => { e.stopPropagation(); setOpen((open + 1) % list.length); }} aria-label="Next">›</button>
-            </>}
+            <button className="lb-btn close" onClick={() => setOpenIndex(null)} aria-label="Close">
+              <CloseIcon size={20} />
+            </button>
+            {list.length > 1 && (
+              <>
+                <button
+                  className="lb-btn prev"
+                  onClick={(e) => { e.stopPropagation(); setOpenIndex((openIndex - 1 + list.length) % list.length); }}
+                  aria-label="Previous"
+                >
+                  <ChevronLeftIcon size={24} />
+                </button>
+                <button
+                  className="lb-btn next"
+                  onClick={(e) => { e.stopPropagation(); setOpenIndex((openIndex + 1) % list.length); }}
+                  aria-label="Next"
+                >
+                  <ChevronRightIcon size={24} />
+                </button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
