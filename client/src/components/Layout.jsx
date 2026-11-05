@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context.jsx';
 import Logo from './Logo.jsx';
 
-const LINKS = [['/services', 'Services'], ['/gallery', 'Gallery'], ['/training', 'Training'], ['/contact', 'Contact']];
+const LINKS = [['/', 'Home'], ['/services', 'Services'], ['/gallery', 'Gallery'], ['/training', 'Training'], ['/contact', 'Contact']];
 
 export function useTheme() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || '');
@@ -82,6 +82,7 @@ export default function Layout() {
             {s.instagram && <a href={`https://www.instagram.com/${s.instagram}`} target="_blank" rel="noreferrer">Instagram</a>}
             {s.tiktok && <a href={`https://www.tiktok.com/@${s.tiktok}`} target="_blank" rel="noreferrer">TikTok</a>}
             {s.whatsapp && <a href={`https://wa.me/${s.whatsapp}`} target="_blank" rel="noreferrer">WhatsApp</a>}
+            <a href="https://www.facebook.com/Shyfunmi.nails" target="_blank" rel="noreferrer">Facebook</a>
           </div>
           <div>
             <h4>Account</h4>

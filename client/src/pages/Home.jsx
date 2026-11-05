@@ -6,7 +6,6 @@ import { Placeholder } from '../components/Nail.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
 import { dur, money } from '../utils.js';
-
 const HEAD = ['Your', 'confidence', 'starts', 'here.'];
 const STYLES = ['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails'];
 const STEPS = [
@@ -26,6 +25,83 @@ const PARTICLES = [
   { size: 9, x: '55%', y: '78%', delay: 0.4 },
   { size: 5, x: '18%', y: '85%', delay: 0.9 },
 ];
+
+const ABOUT_HIGHLIGHTS = [
+  { icon: '💅', label: 'Expert Nail Artist', desc: 'Years of professional experience crafting stunning nail art.' },
+  { icon: '✨', label: 'Premium Products', desc: 'Only top-quality, long-lasting products on every client.' },
+  { icon: '❤️', label: 'Client-First Approach', desc: 'Your comfort, style and confidence are always the priority.' },
+  { icon: '🎓', label: 'Certified Trainer', desc: 'Teaching the next generation of nail technicians in Port Harcourt.' },
+];
+
+function AboutSection() {
+  return (
+    <section className="section container about-section">
+      <Reveal>
+        <span className="about-kicker">Meet the artist</span>
+        <h2 className="about-heading">The woman behind<br />every perfect set.</h2>
+      </Reveal>
+      <div className="about-grid">
+        <Reveal className="about-image-wrap">
+          <div className="about-image-frame">
+            <img
+              src="/shyfunmi-nails.jpeg"
+              alt="Shyfunmi — Nail Artist & Owner of Shyfunmi Nails"
+              className="about-portrait"
+              loading="lazy"
+            />
+            <div className="about-image-badge">
+              <span className="about-badge-inner">
+                <span className="about-badge-num">5★</span>
+                <span className="about-badge-text">Client rated</span>
+              </span>
+            </div>
+            <div className="about-image-glow" aria-hidden="true" />
+          </div>
+        </Reveal>
+
+        <div className="about-content">
+          <Reveal>
+            <p className="about-bio">
+              Hi, I'm <strong>Shyfunmi</strong> — a passionate nail artist based in Port Harcourt, Nigeria.
+              I started Shyfunmi Nails because I believe every woman deserves to feel confident, beautiful,
+              and unapologetically herself — starting from her fingertips.
+            </p>
+            <p className="about-bio">
+              From classic French tips to bold freestyle art, I bring creativity and precision to every set.
+              Whether you're walking into a boardroom or a beach party, I'll make sure your nails tell your story.
+            </p>
+          </Reveal>
+
+          <div className="about-highlights">
+            {ABOUT_HIGHLIGHTS.map(({ icon, label, desc }, i) => (
+              <Reveal key={label} delay={i * 0.08} className="about-highlight">
+                <span className="about-highlight-icon" aria-hidden="true">{icon}</span>
+                <div>
+                  <strong className="about-highlight-label">{label}</strong>
+                  <p className="about-highlight-desc">{desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal>
+            <div className="cta-row" style={{ marginTop: 32 }}>
+              <Link className="btn" to="/book">Book with Shyfunmi</Link>
+              <a
+                className="btn ghost"
+                href="https://www.facebook.com/Shyfunmi.nails"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Follow on Facebook
+              </a>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 // Art panel: gradient orbs + style words
 function HeroArt() {
@@ -159,6 +235,8 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <AboutSection />
 
       <section className="section container cta-band">
         <Reveal>

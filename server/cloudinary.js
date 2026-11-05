@@ -16,16 +16,17 @@ if (configured) {
 
 export const useCloudinary = configured;
 
-export function uploadBuffer(buffer, { folder, publicId, mime } = {}) {
+export function uploadBuffer(buffer, { folder, publicId, mime, resource_type } = {}) {
   if (!configured) return Promise.reject(new Error('Cloudinary is not configured.'));
+  const isVideo = resource_type === 'video' || (mime && mime.startsWith('video/'));
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: folder || 'shyfunmi',
         public_id: publicId,
-        resource_type: 'image',
+        resource_type: isVideo ? 'video' : 'image',
         overwrite: true,
-        format: mime?.includes('png') ? 'png' : mime?.includes('webp') ? 'webp' : undefined,
+        format: isVideo ? undefined : (mime?.includes('png') ? 'png' : mime?.includes('webp') ? 'webp' : undefined),
       },
       (err, result) => (err ? reject(err) : resolve(result)),
     );

@@ -48,7 +48,11 @@ function ServiceRow({ s, refresh }) {
 }
 
 
+const isVideoFile = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('video/upload/');
+
 async function shrink(file) {
+  // Don't process videos
+  if (file.type.startsWith('video/')) return file;
   if (file.type === 'image/gif' || file.size < 1.2 * 1024 * 1024) return file;
   try {
     const bmp = await createImageBitmap(file);
@@ -63,11 +67,16 @@ async function shrink(file) {
 
 export function Gallery() {
   const { reload: reloadSite, site } = useApp();
+  const [tab, setTab] = useState('photos'); // 'photos' | 'videos'
   const [meta, setMeta] = useState({ category: 'Cateye', title: '', caption: '' });
+  const [videoMeta, setVideoMeta] = useState({ category: 'Videos', title: '', caption: '' });
   const [files, setFiles] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [videoBusy, setVideoBusy] = useState(false);
   const photos = site.photos;
-  const cats = [...new Set(['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails', ...photos.map((p) => p.category)])];
+  const cats = [...new Set(['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails', 'Videos', ...photos.map((p) => p.category)])];
+
   const upload = async (e) => {
     e.preventDefault();
     if (!files.length) return toast('Choose at least one photo', 'err');
@@ -81,32 +90,126 @@ export function Gallery() {
         fd.append('files', await shrink(f));
         await api.upload('/api/admin/photos', fd);
       }
-      setFiles([]); e.target.reset(); toast('Photos uploaded to Cloudinary'); reloadSite();
+      setFiles([]); e.target.reset(); toast('Photos uploaded'); reloadSite();
     } catch (x) { toast(x.message, 'err'); } finally { setBusy(false); }
   };
-  const del = async (id) => { if (confirm('Remove this photo?')) { await api.del(`/api/admin/photos/${id}`); reloadSite(); } };
+
+  const uploadVideo = async (e) => {
+    e.preventDefault();
+    if (!videoFiles.length) return toast('Choose at least one video', 'err');
+    setVideoBusy(true);
+    try {
+      for (const f of videoFiles) {
+        const fd = new FormData();
+        fd.append('category', videoMeta.category || 'Videos');
+        fd.append('title', videoMeta.title);
+        fd.append('caption', videoMeta.caption);
+        fd.append('files', f);
+        await api.upload('/api/admin/videos', fd);
+      }
+      setVideoFiles([]); e.target.reset(); toast('Videos uploaded'); reloadSite();
+    } catch (x) { toast(x.message, 'err'); } finally { setVideoBusy(false); }
+  };
+
+  const del = async (id) => { if (confirm('Remove this item?')) { await api.del(`/api/admin/photos/${id}`); reloadSite(); } };
   const patch = async (id, body) => { await api.patch(`/api/admin/photos/${id}`, body); reloadSite(); };
+
+  const imageItems = photos.filter(p => !isVideoFile(p.url));
+  const videoItems = photos.filter(p => isVideoFile(p.url));
+
   return (
     <>
-      <form className="card edit-grid" onSubmit={upload}>
-        <h3 className="wide">Upload to gallery</h3>
-        <div className="field"><label htmlFor="gc">Tag / style</label><input id="gc" list="cats" value={meta.category} onChange={(e) => setMeta({ ...meta, category: e.target.value })} /><datalist id="cats">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
-        <div className="field"><label htmlFor="gt">Title</label><input id="gt" value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} placeholder="e.g. Blush cateye set" /></div>
-        <div className="field wide"><label htmlFor="gd">Caption / details</label><input id="gd" value={meta.caption} onChange={(e) => setMeta({ ...meta, caption: e.target.value })} placeholder="Shape, length, or client request" /></div>
-        <div className="field wide"><label htmlFor="gf">Photos (JPG, PNG, WebP; up to 12 at once)</label><input id="gf" type="file" accept="image/*" multiple onChange={(e) => setFiles(e.target.files)} /></div>
-        <button className="btn sm" disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button>
-      </form>
-      {!photos.length && <p className="muted">No photos yet. Until you add some, visitors see style tiles.</p>}
-      <div className="thumbs">
-        {photos.map((p) => (
-          <div className="th" key={p.id}>
-            <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
-            <input list="cats" defaultValue={p.category} aria-label="Tag" onBlur={(e) => e.target.value !== p.category && patch(p.id, { category: e.target.value })} />
-            <input defaultValue={p.title || ''} placeholder="Title" aria-label="Title" onBlur={(e) => e.target.value !== (p.title || '') && patch(p.id, { title: e.target.value })} />
-            <input defaultValue={p.caption || ''} placeholder="Details" aria-label="Caption" onBlur={(e) => e.target.value !== (p.caption || '') && patch(p.id, { caption: e.target.value })} />
-            <button className="x" onClick={() => del(p.id)} aria-label="Remove photo">✕</button>
+      {/* Upload tabs */}
+      <div className="gallery-upload-tabs">
+        <button className={`gallery-tab-btn ${tab === 'photos' ? 'on' : ''}`} onClick={() => setTab('photos')}>
+          <span>🖼️</span> Upload Photos
+        </button>
+        <button className={`gallery-tab-btn ${tab === 'videos' ? 'on' : ''}`} onClick={() => setTab('videos')}>
+          <span>🎬</span> Upload Videos
+        </button>
+      </div>
+
+      {/* Photo upload form */}
+      {tab === 'photos' && (
+        <form className="card edit-grid" onSubmit={upload}>
+          <h3 className="wide">Upload Photos to Gallery</h3>
+          <div className="field"><label htmlFor="gc">Tag / style</label><input id="gc" list="cats" value={meta.category} onChange={(e) => setMeta({ ...meta, category: e.target.value })} /><datalist id="cats">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
+          <div className="field"><label htmlFor="gt">Title</label><input id="gt" value={meta.title} onChange={(e) => setMeta({ ...meta, title: e.target.value })} placeholder="e.g. Blush cateye set" /></div>
+          <div className="field wide"><label htmlFor="gd">Caption / details</label><input id="gd" value={meta.caption} onChange={(e) => setMeta({ ...meta, caption: e.target.value })} placeholder="Shape, length, or client request" /></div>
+          <div className="field wide">
+            <label htmlFor="gf">Photos (JPG, PNG, WebP — up to 12 at once)</label>
+            <input id="gf" type="file" accept="image/*" multiple onChange={(e) => setFiles(Array.from(e.target.files))} />
+            {files.length > 0 && <p className="muted" style={{ marginTop: 6, fontSize: '0.85rem' }}>{files.length} file{files.length > 1 ? 's' : ''} selected</p>}
           </div>
-        ))}
+          <button className="btn sm" disabled={busy}>{busy ? 'Uploading…' : 'Upload Photos'}</button>
+        </form>
+      )}
+
+      {/* Video upload form */}
+      {tab === 'videos' && (
+        <form className="card edit-grid" onSubmit={uploadVideo}>
+          <div className="wide" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <h3 style={{ margin: 0 }}>Upload Videos to Gallery</h3>
+            <span className="pill" style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)' }}>NEW</span>
+          </div>
+          <p className="muted wide" style={{ margin: '0 0 4px', fontSize: '0.88rem' }}>MP4, WebM or MOV — up to 50 MB each. Videos appear in a dedicated "Videos" tab in the gallery.</p>
+          <div className="field"><label htmlFor="vc">Tag / style</label><input id="vc" list="vcats" value={videoMeta.category} onChange={(e) => setVideoMeta({ ...videoMeta, category: e.target.value })} /><datalist id="vcats">{cats.map((c) => <option key={c} value={c} />)}</datalist></div>
+          <div className="field"><label htmlFor="vt">Title</label><input id="vt" value={videoMeta.title} onChange={(e) => setVideoMeta({ ...videoMeta, title: e.target.value })} placeholder="e.g. Marble nail tutorial" /></div>
+          <div className="field wide"><label htmlFor="vd">Caption / details</label><input id="vd" value={videoMeta.caption} onChange={(e) => setVideoMeta({ ...videoMeta, caption: e.target.value })} placeholder="Style, technique, or notes" /></div>
+          <div className="field wide">
+            <label htmlFor="vf">Videos (MP4, WebM, MOV)</label>
+            <input id="vf" type="file" accept="video/mp4,video/webm,video/quicktime,video/*" multiple onChange={(e) => setVideoFiles(Array.from(e.target.files))} />
+            {videoFiles.length > 0 && <p className="muted" style={{ marginTop: 6, fontSize: '0.85rem' }}>{videoFiles.length} video{videoFiles.length > 1 ? 's' : ''} selected · {videoFiles.map(f => (f.size / 1024 / 1024).toFixed(1) + ' MB').join(', ')}</p>}
+          </div>
+          <button className="btn sm" disabled={videoBusy}>{videoBusy ? 'Uploading…' : 'Upload Videos'}</button>
+        </form>
+      )}
+
+      {/* Media library */}
+      <div style={{ marginTop: 24 }}>
+        <div className="gallery-manage-tabs">
+          <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', fontWeight: 500 }}>
+            Media Library · <span className="muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}>{photos.length} item{photos.length !== 1 ? 's' : ''}</span>
+          </h3>
+        </div>
+        {!photos.length && <p className="muted">No photos or videos yet. Until you add some, the gallery shows style placeholders.</p>}
+
+        {imageItems.length > 0 && (
+          <>
+            <p className="muted" style={{ fontSize: '0.82rem', marginBottom: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Photos ({imageItems.length})</p>
+            <div className="thumbs" style={{ marginBottom: 24 }}>
+              {imageItems.map((p) => (
+                <div className="th" key={p.id}>
+                  <img src={p.url} alt={p.title || `${p.category} nails`} loading="lazy" />
+                  <input list="cats" defaultValue={p.category} aria-label="Tag" onBlur={(e) => e.target.value !== p.category && patch(p.id, { category: e.target.value })} />
+                  <input defaultValue={p.title || ''} placeholder="Title" aria-label="Title" onBlur={(e) => e.target.value !== (p.title || '') && patch(p.id, { title: e.target.value })} />
+                  <input defaultValue={p.caption || ''} placeholder="Details" aria-label="Caption" onBlur={(e) => e.target.value !== (p.caption || '') && patch(p.id, { caption: e.target.value })} />
+                  <button className="x" onClick={() => del(p.id)} aria-label="Remove photo">✕</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {videoItems.length > 0 && (
+          <>
+            <p className="muted" style={{ fontSize: '0.82rem', marginBottom: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Videos ({videoItems.length})</p>
+            <div className="thumbs">
+              {videoItems.map((p) => (
+                <div className="th video-th" key={p.id}>
+                  <div className="video-th-preview">
+                    <video src={p.url} muted playsInline preload="metadata" className="video-th-player" />
+                    <span className="video-th-badge">▶</span>
+                  </div>
+                  <input list="cats" defaultValue={p.category} aria-label="Tag" onBlur={(e) => e.target.value !== p.category && patch(p.id, { category: e.target.value })} />
+                  <input defaultValue={p.title || ''} placeholder="Title" aria-label="Title" onBlur={(e) => e.target.value !== (p.title || '') && patch(p.id, { title: e.target.value })} />
+                  <input defaultValue={p.caption || ''} placeholder="Details" aria-label="Caption" onBlur={(e) => e.target.value !== (p.caption || '') && patch(p.id, { caption: e.target.value })} />
+                  <button className="x" onClick={() => del(p.id)} aria-label="Remove video">✕</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </>
   );

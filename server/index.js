@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -475,6 +475,44 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024, files: 12 },
   fileFilter: (_r, f, cb) => cb(null, /^image\/(jpeg|png|webp|gif)$/.test(f.mimetype)),
+});
+
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024, files: 6 },
+  fileFilter: (_r, f, cb) => cb(null, /^video\/(mp4|webm|quicktime|ogg|x-m4v)$/.test(f.mimetype)),
+});
+
+admin.post('/videos', videoUpload.array('files', 6), async (req, res, next) => {
+  try {
+    if (!req.files?.length) return bad(res, 'Choose at least one video (MP4, WebM or MOV).');
+    const category = clean(req.body.category, 40) || 'Videos';
+    const title = clean(req.body.title, 80);
+    const caption = clean(req.body.caption, 240);
+    const added = await Promise.all(req.files.map(async (f) => {
+      const ext = path.extname(f.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.mp4';
+      const name = uid() + ext;
+      let url, publicId = '';
+      if (useCloudinary) {
+        const up = await uploadBuffer(f.buffer, {
+          folder: 'shyfunmi/videos',
+          publicId: name.replace(/\.[^.]+$/, ''),
+          mime: f.mimetype,
+          resource_type: 'video',
+        });
+        url = up.secure_url;
+        publicId = up.public_id;
+      } else if (useBlob) {
+        url = (await put('gallery/' + name, f.buffer, { access: 'public', contentType: f.mimetype })).url;
+      } else {
+        fs.writeFileSync(path.join(uploads, name), f.buffer);
+        url = '/uploads/' + name;
+      }
+      return { id: uid(), url, publicId, category, title, caption, createdAt: new Date().toISOString() };
+    }));
+    db.photos.unshift(...added); save();
+    res.status(201).json(added);
+  } catch (e) { next(e); }
 });
 admin.post('/photos', upload.array('files', 12), async (req, res, next) => {
   try {
