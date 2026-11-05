@@ -14,10 +14,19 @@ const secure =
 const opts = () => ({ httpOnly: true, sameSite: "lax", secure, path: "/" });
 
 export const appUrl = () => {
-  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, "")}`;
-  return "http://localhost:5173";
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+    return process.env.APP_URL.replace(/\/$/, '');
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, '')}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`;
+  }
+  if (process.env.VERCEL === '1') {
+    return 'https://shyfunmi-nails.vercel.app';
+  }
+  return process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:5173';
 };
 
 export const setCookie = (res, u) =>

@@ -18,45 +18,25 @@ function getTransport() {
       port: SMTP_PORT,
       secure: SMTP_PORT === 465,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
-      pool: true,
-      tls: { rejectUnauthorized: true },
     });
   }
   return transport;
 }
 
-function toPlainText(html) {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/tr>/gi, '\n')
-    .replace(/<\/td>/gi, '  ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-async function send(opts) {
+async function send({ to, subject, html, text, replyTo }) {
   const t = getTransport();
   if (!t) {
-    console.log('[mailer] SMTP not configured — email skipped:', opts.subject);
+    console.log('[mailer] SMTP not configured — email skipped:', subject);
     return;
   }
-  const html = opts.html || '';
   try {
     await t.sendMail({
       from: `"${BUSINESS_NAME}" <${SMTP_USER}>`,
-      replyTo: opts.replyTo || `"${BUSINESS_NAME}" <${SMTP_USER}>`,
-      ...opts,
+      replyTo: replyTo || `"${BUSINESS_NAME}" <${SMTP_USER}>`,
+      to,
+      subject,
+      text,
       html,
-      // Provide a clean plain-text alternative (crucial for spam filters)
-      text: opts.text || toPlainText(html),
     });
   } catch (e) {
     console.error('[mailer] Failed to send email:', e.message);
@@ -66,13 +46,25 @@ async function send(opts) {
 function fmtDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
+
 function fmtTime(t) {
   const [h, m] = t.split(':').map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
 }
+
+function fmtDuration(dur) {
+  const mins = Number(dur) || 60;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `${h} hr ${m} min`;
+  if (h > 0) return `${h} hr`;
+  return `${m} min`;
+}
+
 function money(n, c = '₦') {
   return n > 0 ? `${c}${Number(n).toLocaleString('en-NG')}` : 'Confirmed on arrival';
 }
+
 function esc(s) {
   return String(s || '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
@@ -80,220 +72,346 @@ function esc(s) {
 function brand(settings = {}) {
   return {
     name: settings.businessName || BUSINESS_NAME,
-    tagline: settings.tagline || 'Your confidence starts here',
+    tagline: settings.tagline || 'Nails that transform confidence',
     address: settings.address || 'Peter Odili Road, Port Harcourt',
     whatsapp: settings.whatsapp || '',
     site: appUrl(),
   };
 }
 
-const base = (content, settings = {}, previewText = '') => {
+/**
+ * Clean, lightweight, professional email layout.
+ * Avoids heavy dark banners, hidden divs, and spammy CSS patterns.
+ */
+function layout(bodyHtml, settings = {}) {
   const b = brand(settings);
   const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
-  // previewText shown in inbox before email is opened — improves open rate & trust signal
-  const preview = previewText || b.tagline;
+
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(b.name)}</title>
-<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#F7F5F8;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#17131B;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-  <!-- Preview text (hidden, shows in inbox) -->
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${esc(preview)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F5F8;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #E7E1EA;border-radius:24px;overflow:hidden;">
-        <!-- Header -->
-        <tr>
-          <td style="background:#2A1626;color:#F7F5F8;padding:36px 40px 28px;">
-            <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#E08BB4;">Nail studio · Port Harcourt</p>
-            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-weight:300;font-size:28px;letter-spacing:-0.03em;">${esc(b.name)}</h1>
-            <p style="margin:8px 0 0;opacity:0.7;font-size:14px;">${esc(b.tagline)}</p>
-          </td>
-        </tr>
-        <!-- Body -->
-        <tr><td style="padding:32px 40px;">${content}</td></tr>
-        <!-- Footer -->
-        <tr>
-          <td style="padding:20px 40px;background:#F7F5F8;border-top:1px solid #E7E1EA;font-size:12px;color:#6C6473;">
-            <p style="margin:0 0 6px;"><strong style="color:#17131B;">${esc(b.name)}</strong> · ${esc(b.address)}</p>
-            <p style="margin:0 0 6px;">
-              <a href="${esc(b.site)}" style="color:#8E3B6A;text-decoration:none;">Visit the salon website</a>
-              ${wa ? ` · <a href="${wa}" style="color:#8E3B6A;text-decoration:none;">WhatsApp</a>` : ''}
-            </p>
-            <p style="margin:0;font-size:11px;color:#9CA3AF;">You are receiving this email because you made a booking or enquiry at ${esc(b.name)}. If this wasn't you, please ignore this email.</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
+<body style="margin:0;padding:24px 12px;background-color:#F5F5F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1C1C1E;line-height:1.6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;margin:0 auto;background:#FFFFFF;border-radius:18px;border:1px solid #E5E5EA;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <!-- Header -->
+    <tr>
+      <td style="padding:28px 32px 20px;border-bottom:1px solid #F2F2F7;">
+        <h2 style="margin:0;font-size:22px;font-weight:600;color:#2A1626;letter-spacing:-0.02em;">${esc(b.name)}</h2>
+        <p style="margin:4px 0 0;font-size:13px;color:#8E8E93;">${esc(b.tagline)} · ${esc(b.address)}</p>
+      </td>
+    </tr>
+    <!-- Content -->
+    <tr>
+      <td style="padding:28px 32px;">
+        ${bodyHtml}
+      </td>
+    </tr>
+    <!-- Footer -->
+    <tr>
+      <td style="padding:20px 32px;background:#FBFBFD;border-top:1px solid #F2F2F7;font-size:12px;color:#8E8E93;line-height:1.5;">
+        <p style="margin:0 0 6px;">
+          <a href="${esc(b.site)}" style="color:#8E3B6A;text-decoration:none;font-weight:500;">Visit Salon Website</a>
+          ${wa ? ` &nbsp;·&nbsp; <a href="${wa}" style="color:#8E3B6A;text-decoration:none;font-weight:500;">WhatsApp</a>` : ''}
+          &nbsp;·&nbsp; <a href="${esc(b.site)}/account" style="color:#8E3B6A;text-decoration:none;font-weight:500;">My Account</a>
+        </p>
+        <p style="margin:0;">You received this email regarding your appointment or enquiry with ${esc(b.name)}.</p>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
-};
+}
 
-const row = (label, value) => value
-  ? `<tr>
-      <td style="padding:12px 0;border-bottom:1px solid #E7E1EA;color:#6C6473;font-size:14px;">${esc(label)}</td>
-      <td style="padding:12px 0;border-bottom:1px solid #E7E1EA;font-size:14px;font-weight:600;text-align:right;">${value}</td>
-    </tr>` : '';
+export async function sendBookingConfirmation(booking, settings = {}) {
+  if (!booking.email) return;
+  const b = brand(settings);
+  const firstName = booking.name.split(' ')[0] || booking.name;
+  const dateFormatted = fmtDate(booking.date);
+  const timeFormatted = fmtTime(booking.time);
+  const durFormatted = fmtDuration(booking.duration);
+  const priceFormatted = money(booking.price, settings.currency) + (booking.discountPct ? ` (${booking.discountPct}% loyalty applied)` : '');
 
-const pill = (status, label) => {
-  const colors = {
-    pending: 'background:#FEF3C7;color:#92400E;',
-    confirmed: 'background:#D1FAE5;color:#065F46;',
-    completed: 'background:#EDE9FE;color:#5B21B6;',
-    cancelled: 'background:#FEE2E2;color:#991B1B;',
+  const text = `Hi ${firstName},
+
+Thank you for booking with ${b.name}!
+
+We have received your appointment request and will confirm it shortly.
+
+Appointment Summary:
+• Service: ${booking.serviceName}
+• Date: ${dateFormatted}
+• Time: ${timeFormatted}
+• Duration: ${durFormatted}
+• Price: ${priceFormatted}
+• Nail Shape: ${booking.shape || 'Standard'}
+${booking.color ? `• Colour/Style Idea: ${booking.color}\n` : ''}${booking.notes ? `• Special Notes: ${booking.notes}\n` : ''}
+Status: Pending Confirmation
+
+You can view your booking status and appointments at:
+${b.site}/account
+
+Warm regards,
+${b.name}
+${b.address}`;
+
+  const html = layout(`
+    <p style="margin:0 0 16px;font-size:16px;color:#1C1C1E;">Hi <strong>${esc(firstName)}</strong>,</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#3A3A3C;">We have received your booking request! Victoria will review your slot and confirm shortly.</p>
+
+    <div style="background:#FAF8FA;border:1px solid #EFE8ED;border-radius:12px;padding:18px 20px;margin-bottom:24px;">
+      <h3 style="margin:0 0 14px;font-size:15px;color:#2A1626;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Appointment Details</h3>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#3A3A3C;">
+        <tr><td style="padding:6px 0;color:#636366;">Service</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(booking.serviceName)}</td></tr>
+        <tr><td style="padding:6px 0;color:#636366;">Date</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(dateFormatted)}</td></tr>
+        <tr><td style="padding:6px 0;color:#636366;">Time</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(timeFormatted)}</td></tr>
+        <tr><td style="padding:6px 0;color:#636366;">Duration</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(durFormatted)}</td></tr>
+        <tr><td style="padding:6px 0;color:#636366;">Estimated Price</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(priceFormatted)}</td></tr>
+        <tr><td style="padding:6px 0;color:#636366;">Nail Shape</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(booking.shape || 'Standard')}</td></tr>
+        ${booking.color ? `<tr><td style="padding:6px 0;color:#636366;">Colour / Idea</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(booking.color)}</td></tr>` : ''}
+        ${booking.notes ? `<tr><td style="padding:6px 0;color:#636366;">Notes</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(booking.notes)}</td></tr>` : ''}
+      </table>
+    </div>
+
+    <div style="margin:24px 0 10px;text-align:center;">
+      <a href="${esc(b.site)}/account" style="display:inline-block;padding:12px 28px;background:#8E3B6A;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:14px;font-weight:500;">View My Bookings</a>
+    </div>
+  `, settings);
+
+  await send({
+    to: booking.email,
+    subject: `Appointment Booking Request: ${booking.serviceName} (${dateFormatted})`,
+    text,
+    html,
+  });
+}
+
+export async function sendStatusUpdate(booking, settings = {}) {
+  if (!booking.email) return;
+  const b = brand(settings);
+  const firstName = booking.name.split(' ')[0] || booking.name;
+  const dateFormatted = fmtDate(booking.date);
+  const timeFormatted = fmtTime(booking.time);
+
+  const messages = {
+    confirmed: {
+      subject: `Your Appointment is Confirmed! — ${booking.serviceName} at ${b.name}`,
+      headline: 'Your appointment is confirmed!',
+      body: `We are looking forward to seeing you on ${dateFormatted} at ${timeFormatted}. Please arrive a few minutes before your slot.`,
+    },
+    completed: {
+      subject: `Thank you for visiting ${b.name}!`,
+      headline: 'Thank you for your visit!',
+      body: `We hope you love your new nails! Your loyalty visit has been recorded on your account. You can leave a review anytime from your dashboard.`,
+    },
+    cancelled: {
+      subject: `Appointment Update: Booking Cancelled — ${b.name}`,
+      headline: 'Your appointment has been cancelled',
+      body: `Your appointment for ${booking.serviceName} on ${dateFormatted} has been cancelled. You can pick another date or rebook anytime.`,
+    },
   };
-  return `<span style="display:inline-block;padding:3px 12px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize;${colors[status] || colors.pending}">${esc(label || status)}</span>`;
-};
 
-const btn = (href, label, accent = false) =>
-  `<a href="${esc(href)}" style="display:inline-block;margin-top:20px;margin-right:8px;padding:14px 26px;background:${accent ? '#8E3B6A' : '#17131B'};color:#F7F5F8;border-radius:999px;text-decoration:none;font-size:15px;font-weight:500;">${esc(label)}</a>`;
+  const info = messages[booking.status] || {
+    subject: `Booking Update: ${booking.status} — ${b.name}`,
+    headline: `Booking status: ${booking.status}`,
+    body: `Your booking status for ${booking.serviceName} on ${dateFormatted} is now ${booking.status}.`,
+  };
 
-function bookingRows(booking, settings) {
-  const { currency = '₦' } = settings;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 8px;">
-    ${row('Service', esc(booking.serviceName))}
-    ${row('Date', esc(fmtDate(booking.date)))}
-    ${row('Time', esc(fmtTime(booking.time)))}
-    ${row('Duration', esc(`${Math.floor(booking.duration / 60) ? Math.floor(booking.duration / 60) + ' hr ' : ''}${booking.duration % 60 ? booking.duration % 60 + ' min' : ''}`.trim()))}
-    ${row('Price', esc(money(booking.price, currency) + (booking.discountPct ? ` (${booking.discountPct}% loyalty discount)` : '')))}
-    ${row('Nail shape', esc(booking.shape))}
-    ${booking.color ? row('Colour idea', esc(booking.color)) : ''}
-    ${booking.notes ? row('Notes', esc(booking.notes)) : ''}
-  </table>`;
-}
+  const text = `Hi ${firstName},
 
-export async function sendBookingConfirmation(booking, settings) {
-  if (!booking.email) return;
-  const b = brand(settings);
-  const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
-  const firstName = esc(booking.name.split(' ')[0]);
-  const preview = `Hi ${firstName}, we've received your booking for ${booking.serviceName} on ${fmtDate(booking.date)}.`;
+${info.headline}
+
+${info.body}
+
+Service: ${booking.serviceName}
+Date: ${dateFormatted}
+Time: ${timeFormatted}
+
+View details anytime at:
+${b.site}/account
+
+Warm regards,
+${b.name}`;
+
+  const html = layout(`
+    <p style="margin:0 0 14px;font-size:16px;color:#1C1C1E;">Hi <strong>${esc(firstName)}</strong>,</p>
+    <h3 style="margin:0 0 12px;font-size:18px;color:#2A1626;">${esc(info.headline)}</h3>
+    <p style="margin:0 0 20px;font-size:15px;color:#3A3A3C;">${esc(info.body)}</p>
+
+    <div style="background:#FAF8FA;border:1px solid #EFE8ED;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#3A3A3C;">
+        <tr><td style="padding:5px 0;color:#636366;">Service</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(booking.serviceName)}</td></tr>
+        <tr><td style="padding:5px 0;color:#636366;">Date</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(dateFormatted)}</td></tr>
+        <tr><td style="padding:5px 0;color:#636366;">Time</td><td style="padding:5px 0;text-align:right;font-weight:600;color:#1C1C1E;">${esc(timeFormatted)}</td></tr>
+      </table>
+    </div>
+
+    <div style="margin:20px 0;text-align:center;">
+      <a href="${esc(b.site)}/account" style="display:inline-block;padding:12px 28px;background:#8E3B6A;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:14px;font-weight:500;">Manage My Booking</a>
+    </div>
+  `, settings);
+
   await send({
     to: booking.email,
-    subject: `Booking received – ${booking.serviceName} on ${fmtDate(booking.date)}`,
-    html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
-      <p style="margin:0 0 8px;line-height:1.6;">We've received your booking request. Shyfunmi will confirm your appointment shortly — you'll get another email when it's confirmed.</p>
-      ${bookingRows(booking, settings)}
-      <p style="margin:16px 0 0;">Status ${pill('pending', 'Pending confirmation')}</p>
-      ${wa ? btn(wa, 'Message on WhatsApp') : ''}
-      ${btn(`${b.site}/account`, 'View my bookings', true)}
-    `, settings, preview),
+    subject: info.subject,
+    text,
+    html,
   });
 }
 
-export async function sendStatusUpdate(booking, settings) {
-  if (!booking.email) return;
+export async function sendAdminNewBooking(booking, settings = {}) {
   const b = brand(settings);
-  const wa = b.whatsapp ? `https://wa.me/${b.whatsapp}` : '';
-  const labels = { confirmed: 'Your appointment is confirmed!', completed: 'Thanks for visiting us!', cancelled: 'Your booking has been cancelled.' };
-  const label = labels[booking.status] || `Booking ${booking.status}`;
-  const firstName = esc(booking.name.split(' ')[0]);
-  await send({
-    to: booking.email,
-    subject: `${label} – ${booking.serviceName} at ${b.name}`,
-    html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
-      ${booking.status === 'confirmed' ? '<p style="line-height:1.6;">Your appointment is confirmed. We\'ll see you soon — please arrive a few minutes early.</p>' : ''}
-      ${booking.status === 'completed' ? '<p style="line-height:1.6;">Thank you for visiting Shyfunmi Nails. We hope you loved your nails. Leave a review from your account — it means a lot. This visit also stamps your loyalty card.</p>' : ''}
-      ${booking.status === 'cancelled' ? '<p style="line-height:1.6;">Your appointment has been cancelled. You can rebook on our website anytime.</p>' : ''}
-      ${bookingRows(booking, settings)}
-      <p style="margin:16px 0 0;">Status ${pill(booking.status)}</p>
-      ${booking.status !== 'cancelled' && wa ? btn(wa, 'Message on WhatsApp') : ''}
-      ${booking.status === 'cancelled' ? btn(`${b.site}/book`, 'Book another appointment', true) : btn(`${b.site}/account`, 'Open my account', true)}
-    `, settings, label),
-  });
-}
+  const phone = String(booking.phone || '').replace(/\D/g, '');
+  const wa = phone ? `https://wa.me/${phone.replace(/^0/, '234')}` : '';
 
-export async function sendAdminNewBooking(booking, settings) {
-  const { currency = '₦' } = settings;
-  const b = brand(settings);
-  const n = String(booking.phone || '').replace(/\D/g, '').replace(/^0/, '234');
+  const text = `New Booking Request from ${booking.name}
+
+Service: ${booking.serviceName}
+Date: ${fmtDate(booking.date)}
+Time: ${fmtTime(booking.time)}
+Phone: ${booking.phone}
+Email: ${booking.email || 'N/A'}
+Shape: ${booking.shape || 'Standard'}
+Color: ${booking.color || 'N/A'}
+Notes: ${booking.notes || 'None'}
+
+Admin Dashboard:
+${b.site}/admin/bookings`;
+
+  const html = layout(`
+    <h3 style="margin:0 0 16px;font-size:18px;color:#2A1626;">New Booking Request</h3>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#3A3A3C;margin-bottom:20px;">
+      <tr><td style="padding:6px 0;color:#636366;">Client</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(booking.name)}</td></tr>
+      <tr><td style="padding:6px 0;color:#636366;">Phone</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(booking.phone)}</td></tr>
+      ${booking.email ? `<tr><td style="padding:6px 0;color:#636366;">Email</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(booking.email)}</td></tr>` : ''}
+      <tr><td style="padding:6px 0;color:#636366;">Service</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(booking.serviceName)}</td></tr>
+      <tr><td style="padding:6px 0;color:#636366;">Date</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(fmtDate(booking.date))}</td></tr>
+      <tr><td style="padding:6px 0;color:#636366;">Time</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(fmtTime(booking.time))}</td></tr>
+      <tr><td style="padding:6px 0;color:#636366;">Price</td><td style="padding:6px 0;text-align:right;font-weight:600;">${esc(money(booking.price, settings.currency))}</td></tr>
+      ${booking.notes ? `<tr><td style="padding:6px 0;color:#636366;">Notes</td><td style="padding:6px 0;text-align:right;">${esc(booking.notes)}</td></tr>` : ''}
+    </table>
+
+    <div style="margin:20px 0;text-align:center;">
+      ${wa ? `<a href="${wa}" style="display:inline-block;margin-right:8px;padding:10px 20px;background:#25D366;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:13px;font-weight:500;">WhatsApp Client</a>` : ''}
+      <a href="${esc(b.site)}/admin/bookings" style="display:inline-block;padding:10px 20px;background:#2A1626;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:13px;font-weight:500;">Open Dashboard</a>
+    </div>
+  `, settings);
+
   await send({
     to: ADMIN_EMAIL,
-    subject: `New booking: ${booking.name} — ${booking.serviceName} on ${fmtDate(booking.date)}`,
-    html: base(`
-      <p style="margin:0 0 8px;letter-spacing:0.16em;text-transform:uppercase;font-size:11px;color:#8E3B6A;">Studio inbox</p>
-      <h2 style="margin:0 0 16px;font-family:Georgia,serif;font-weight:300;font-size:24px;">New booking request</h2>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${row('Client', esc(booking.name))}
-        ${row('Phone', esc(booking.phone))}
-        ${booking.email ? row('Email', `<a href="mailto:${esc(booking.email)}" style="color:#8E3B6A;text-decoration:none;">${esc(booking.email)}</a>`) : ''}
-        ${row('Service', esc(booking.serviceName))}
-        ${row('Date', esc(fmtDate(booking.date)))}
-        ${row('Time', esc(fmtTime(booking.time)))}
-        ${row('Nail shape', esc(booking.shape))}
-        ${booking.color ? row('Colour', esc(booking.color)) : ''}
-        ${booking.notes ? row('Notes', esc(booking.notes)) : ''}
-        ${row('Price', esc(money(booking.price, currency)))}
-        ${booking.loyalty ? row('Loyalty visit', esc(`Yes — ${booking.discountPct}% off applies`)) : ''}
-      </table>
-      ${n ? btn(`https://wa.me/${n}`, 'WhatsApp client') : ''}
-      ${btn(`${b.site}/admin/bookings`, 'Open dashboard', true)}
-    `, settings, `New booking from ${booking.name} for ${booking.serviceName}`),
+    subject: `New Appointment: ${booking.name} — ${booking.serviceName}`,
+    text,
+    html,
   });
 }
 
 export async function sendContactMessage(msg, settings = {}) {
   const b = brand(settings);
+  const text = `Contact Inquiry from ${msg.name}
+
+Email: ${msg.email || 'N/A'}
+Phone: ${msg.phone || 'N/A'}
+Subject: ${msg.subject || 'General'}
+
+Message:
+${msg.message}
+
+Reply via email or check dashboard:
+${b.site}/admin/messages`;
+
+  const html = layout(`
+    <h3 style="margin:0 0 16px;font-size:18px;color:#2A1626;">New Contact Message</h3>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#3A3A3C;margin-bottom:16px;">
+      <tr><td style="padding:5px 0;color:#636366;">From</td><td style="padding:5px 0;text-align:right;font-weight:600;">${esc(msg.name)}</td></tr>
+      <tr><td style="padding:5px 0;color:#636366;">Email</td><td style="padding:5px 0;text-align:right;">${esc(msg.email)}</td></tr>
+      ${msg.phone ? `<tr><td style="padding:5px 0;color:#636366;">Phone</td><td style="padding:5px 0;text-align:right;">${esc(msg.phone)}</td></tr>` : ''}
+      <tr><td style="padding:5px 0;color:#636366;">Subject</td><td style="padding:5px 0;text-align:right;">${esc(msg.subject || 'General enquiry')}</td></tr>
+    </table>
+    <div style="background:#F5F5F7;border-radius:10px;padding:16px;font-size:14px;line-height:1.6;margin-bottom:20px;">
+      ${esc(msg.message).replace(/\n/g, '<br>')}
+    </div>
+    <div style="text-align:center;">
+      ${msg.email ? `<a href="mailto:${esc(msg.email)}" style="display:inline-block;padding:10px 22px;background:#8E3B6A;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:13px;font-weight:500;">Reply to ${esc(msg.name)}</a>` : ''}
+    </div>
+  `, settings);
+
   await send({
     to: ADMIN_EMAIL,
     replyTo: msg.email || undefined,
-    subject: `Contact form: ${msg.subject || 'General enquiry'} — from ${msg.name}`,
-    html: base(`
-      <p style="margin:0 0 8px;letter-spacing:0.16em;text-transform:uppercase;font-size:11px;color:#8E3B6A;">Studio inbox</p>
-      <h2 style="margin:0 0 16px;font-family:Georgia,serif;font-weight:300;font-size:24px;">New message</h2>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${row('Name', esc(msg.name))}
-        ${msg.email ? row('Email', `<a href="mailto:${esc(msg.email)}" style="color:#8E3B6A;text-decoration:none;">${esc(msg.email)}</a>`) : ''}
-        ${msg.phone ? row('Phone', esc(msg.phone)) : ''}
-        ${row('Subject', esc(msg.subject || 'General enquiry'))}
-      </table>
-      <p style="background:#F7F5F8;border-radius:16px;padding:16px 20px;font-size:14px;line-height:1.7;margin:18px 0 0;">${esc(msg.message).replace(/\n/g, '<br>')}</p>
-      ${msg.email ? btn(`mailto:${msg.email}`, 'Reply by email', true) : ''}
-      ${btn(`${b.site}/admin/messages`, 'Open messages')}
-    `, settings, `New contact from ${msg.name}: ${msg.subject || 'General enquiry'}`),
+    subject: `Contact Form: ${msg.name} — ${msg.subject || 'General enquiry'}`,
+    text,
+    html,
   });
 }
 
 export async function sendContactConfirmation(msg, settings = {}) {
   if (!msg.email) return;
   const b = brand(settings);
-  const firstName = esc(msg.name.split(' ')[0]);
+  const firstName = msg.name.split(' ')[0] || msg.name;
+
+  const text = `Hi ${firstName},
+
+Thank you for reaching out to ${b.name}!
+
+We have received your message regarding "${msg.subject || 'General enquiry'}" and will get back to you shortly.
+
+Your message:
+${msg.message}
+
+Warm regards,
+${b.name}`;
+
+  const html = layout(`
+    <p style="margin:0 0 14px;font-size:16px;color:#1C1C1E;">Hi <strong>${esc(firstName)}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#3A3A3C;">Thank you for getting in touch with us! We have received your message and will reply as soon as possible.</p>
+    <div style="background:#FAF8FA;border:1px solid #EFE8ED;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:14px;color:#636366;">
+      <strong>Your Message:</strong><br>
+      ${esc(msg.message).replace(/\n/g, '<br>')}
+    </div>
+    <div style="text-align:center;">
+      <a href="${esc(b.site)}" style="display:inline-block;padding:10px 24px;background:#2A1626;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:13px;font-weight:500;">Visit Website</a>
+    </div>
+  `, settings);
+
   await send({
     to: msg.email,
-    subject: `We received your message – ${b.name}`,
-    html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
-      <p style="line-height:1.6;">Thank you for writing to ${esc(b.name)}. We have your message and will reply as soon as we can.</p>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-        ${row('Subject', esc(msg.subject || 'General enquiry'))}
-      </table>
-      <p style="background:#F7F5F8;border-radius:16px;padding:16px 20px;font-size:14px;line-height:1.7;margin:18px 0 0;">${esc(msg.message).replace(/\n/g, '<br>')}</p>
-      ${btn(b.site, 'Back to the website', true)}
-    `, settings, `We got your message, ${firstName}. We'll be in touch soon.`),
+    subject: `We received your message — ${b.name}`,
+    text,
+    html,
   });
 }
 
 export async function sendPasswordReset(user, token, settings = {}) {
   const b = brand(settings);
   const link = `${b.site}/reset?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-  const firstName = esc(user.name.split(' ')[0]);
+  const firstName = user.name.split(' ')[0] || user.name;
+
+  const text = `Hi ${firstName},
+
+We received a request to reset the password for your ${b.name} account.
+
+Use the link below to choose a new password (valid for 1 hour):
+${link}
+
+If you didn't request this, you can safely ignore this email.
+
+${b.name}`;
+
+  const html = layout(`
+    <p style="margin:0 0 14px;font-size:16px;color:#1C1C1E;">Hi <strong>${esc(firstName)}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#3A3A3C;">We received a request to reset your password. Click the button below to set a new password. This link is valid for 1 hour.</p>
+    <div style="margin:24px 0;text-align:center;">
+      <a href="${esc(link)}" style="display:inline-block;padding:12px 28px;background:#8E3B6A;color:#FFFFFF;text-decoration:none;border-radius:999px;font-size:14px;font-weight:500;">Reset Password</a>
+    </div>
+    <p style="margin:0;font-size:13px;color:#8E8E93;">If you did not request this change, you can safely ignore this email.</p>
+  `, settings);
+
   await send({
     to: user.email,
     subject: `Reset your ${b.name} password`,
-    html: base(`
-      <p style="margin:0 0 12px;font-size:16px;">Hi <strong>${firstName}</strong>,</p>
-      <p style="line-height:1.6;">We received a request to reset the password for your ${esc(b.name)} account. This link expires in 1 hour.</p>
-      ${btn(link, 'Choose a new password', true)}
-      <p style="margin-top:24px;font-size:13px;color:#6C6473;">If you did not ask for this, you can ignore this email. Your password stays the same.</p>
-    `, settings, `Password reset request for your ${b.name} account`),
+    text,
+    html,
   });
 }
