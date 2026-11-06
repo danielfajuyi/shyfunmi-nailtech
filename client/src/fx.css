@@ -69,7 +69,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--blush) 38%, transparent
 
 /* ---------- Account: loyalty card ---------- */
 .loyalty-card { position: relative; overflow: hidden; }
-.loyalty-card::after { content: ''; position: absolute; inset: -40%; pointer-events: none; background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.16) 50%, transparent 58%); animation: fxSheen 7s ease-in-out infinite; }
+.loyalty-card::after { content: ''; position: absolute; inset: -40%; pointer-events: none; background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.09) 50%, transparent 58%); animation: fxSheen 7s ease-in-out infinite; }
 .loyalty-card .stamps > * { animation: fxPop 0.7s var(--ease) both; }
 .loyalty-card .stamps > *:nth-child(1) { animation-delay: 0.44s; }
 .loyalty-card .stamps > *:nth-child(2) { animation-delay: 0.53s; }

@@ -116,7 +116,7 @@ function HeroScene({ photo }) {
         ))}
 
         {CHIPS.map((c, i) => (
-          <div key={c.t} className="hx-chip-layer" style={{ left: c.x, top: c.y, transform: `translateZ(${c.z}px)` }}>
+          <div key={c.t} className={`hx-chip-layer c${i}`} style={{ left: c.x, top: c.y, transform: `translateZ(${c.z}px)` }}>
             <motion.span className="hx-chip" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 1.1 + i * 0.18, duration: 0.7, ease: EASE }}>{c.t}</motion.span>
           </div>

@@ -1,0 +1,82 @@
+/* =====================================================================
+   Responsive hardening (loaded last). Found by rendering every page at
+   320 / 360 / 390 / 430 / 768 / 1024 / 1366 px and measuring overflow.
+   ===================================================================== */
+
+/* Never let a stray decorative layer widen the page (this is what made phones zoom out) */
+body { overflow-x: clip; }
+html { overflow-x: hidden; }
+.hx-sec, .ph, .footer { overflow-x: clip; }
+
+/* Rings keep their centred position even when animations are off (reduce-motion users) */
+.hx-ring.a { transform: translate(-50%, -50%) translateZ(-30px) rotateX(74deg); }
+.hx-ring.b { transform: translate(-50%, -50%) translateZ(60px) rotateY(70deg); }
+
+/* ---------- Phones and small tablets ---------- */
+@media (max-width: 860px) {
+  .hx-hero { overflow: hidden; }
+  .hx-scene-wrap { margin-bottom: 44px; height: 340px; }
+  .hx-ring.b { width: 62%; }
+  .hx-ring.a { width: 88%; }
+  /* keep chips and nails inside the screen and clear of the headline */
+  .hx-chip-layer.c0 { left: 3% !important; top: 30% !important; }
+  .hx-chip-layer.c1 { left: auto !important; right: 6% !important; top: 40% !important; }
+  .hx-chip-layer.c2 { display: none; }
+  .hx-nail-layer:nth-of-type(n) { max-width: 30%; }
+  .hx-about-glow { inset: -2% 0; }
+  .hx-about-badge { right: 8px; }
+}
+
+/* Loyalty stamps: always one tidy row, never an orphaned reward stamp */
+.hx-stamps { display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, 64px)); gap: 10px; justify-content: center; }
+.hx-stamp { width: auto; height: auto; aspect-ratio: 1; }
+@media (max-width: 800px) { .hx-stamps { justify-content: start; } .hx-loyal-nail.b { display: none; } }
+
+/* Services note box needs air above it */
+.note-box { margin-top: 28px; }
+
+/* Footer wordmark a touch larger on phones */
+@media (max-width: 640px) { .foot-mark span { font-size: 13vw; } }
+
+/* ---------- Dashboards: stop grid children from forcing the page wider than the screen ---------- */
+.abody { grid-template-columns: minmax(0, 1fr); }
+.abody > *, .agrid > *, .settings > *, .split > *, .profile-layout > * { min-width: 0; }
+.settings { grid-template-columns: minmax(0, 1fr); }
+.hrow { grid-template-columns: 110px 80px minmax(0, 1fr) minmax(0, 1fr); }
+.hrow > * { min-width: 0; }
+input, select, textarea { max-width: 100%; min-width: 0; }
+.toolbar input { min-width: min(200px, 100%); }
+@media (max-width: 560px) { .hrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.table-wrap, .calendar-week-strip, .days, .tabs { max-width: 100%; }
+@media (max-width: 420px) { .atop { padding-inline: 14px; gap: 10px; } .atop h1 { font-size: 1.3rem; } }
+
+/* ---------- Phone polish found in visual review ---------- */
+/* Gallery: two columns on every phone (was one huge column under 400px) */
+@media (max-width: 400px) and (min-width: 341px) {
+  .masonry { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+}
+
+/* Booking steps: stay on one line, label shown only for the active step */
+@media (max-width: 560px) {
+  .stepper { display: flex; flex-wrap: nowrap; gap: 6px; }
+  .stepper li { flex: 0 0 auto; padding: 6px; gap: 0; }
+  .stepper li:not(.on) { font-size: 0; }
+  .stepper li:not(.on) span { font-size: 0.8rem; }
+  .stepper li.on { flex: 1 1 auto; padding: 6px 14px 6px 6px; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Account tabs: all four fit without side-scrolling */
+@media (max-width: 560px) {
+  .tabs { gap: 0; }
+  .tabs button { flex: 1 1 auto; padding: 12px 6px; font-size: 0.86rem; white-space: nowrap; }
+}
+
+/* Admin: odd last stat card fills the row; week strip fits 7 days without cutting off the selected one */
+@media (max-width: 560px) {
+  .stats > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .calendar-week-strip { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; gap: 4px; overflow: visible; }
+  .calendar-week-strip > * { min-width: 0; padding-inline: 2px !important; }
+  .calendar-week-strip .cal-day-month { display: none; }
+  .calendar-week-strip .cal-day-name { font-size: 0.6rem; letter-spacing: 0; }
+  .calendar-week-strip .cal-count-badge { font-size: 0.6rem; padding: 1px 6px; }
+}
