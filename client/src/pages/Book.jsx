@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import PageHero from '../components/PageHero.jsx';
-import { COLORS, Nail, SHAPES } from '../components/Nail.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
@@ -16,19 +15,27 @@ export default function Book() {
   const { site, user } = useApp();
   const s = site.settings;
   const [q] = useSearchParams();
+  const location = useLocation();
   const [svc, setSvc] = useState(site.services.find((x) => x.id === q.get('service')) || null);
   const [step, setStep] = useState(svc ? 1 : 0);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [slots, setSlots] = useState(null);
   const [tick, setTick] = useState(0);
-  const [f, setF] = useState({ name: '', phone: '', email: '', shape: 'Almond', color: 'Blush', notes: '' });
+  const [f, setF] = useState({ name: '', phone: '', email: '', notes: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
 
   useEffect(() => {
-    if (user) setF((p) => ({ ...p, name: p.name || user.name, phone: p.phone || user.phone || '', email: p.email || user.email }));
+    if (user) {
+      setF((p) => ({
+        ...p,
+        name: p.name || user.name || '',
+        phone: p.phone || user.phone || '',
+        email: p.email || user.email || '',
+      }));
+    }
   }, [user]);
 
   const days = useMemo(() => {
@@ -48,12 +55,43 @@ export default function Book() {
   }, [svc, date, tick]);
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
   const submit = async (e) => {
-    e.preventDefault(); setErr(''); setBusy(true);
-    try { setDone(await api.post('/api/bookings', { ...f, serviceId: svc.id, date, time })); }
-    catch (x) { setErr(x.message); if (/available/.test(x.message)) { setStep(1); setTick((t) => t + 1); } }
-    finally { setBusy(false); }
+    e.preventDefault();
+    setErr('');
+
+    if (!user) {
+      setErr('You must sign in or create an account before your booking can be confirmed.');
+      return;
+    }
+    if (!f.name.trim() || f.name.trim().length < 2) {
+      setErr('Please enter your full name.');
+      return;
+    }
+    if (!f.phone.trim() || f.phone.replace(/\D/g, '').length < 7) {
+      setErr('Please enter a valid phone number.');
+      return;
+    }
+    if (!f.email.trim() || !/^\S+@\S+\.\S+$/.test(f.email.trim())) {
+      setErr('Please enter a valid email address.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setDone(await api.post('/api/bookings', { ...f, serviceId: svc.id, date, time }));
+    } catch (x) {
+      setErr(x.message);
+      if (/available/.test(x.message)) {
+        setStep(1);
+        setTick((t) => t + 1);
+      }
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const returnUrl = encodeURIComponent(location.pathname + location.search);
 
   if (done) {
     const msg = `Hello ${s.businessName}, I just booked ${done.serviceName} for ${fmtDate(done.date)} at ${fmtTime(done.time)}. My name is ${done.name}.`;
@@ -116,20 +154,46 @@ export default function Book() {
           {step === 2 && svc && (
             <form onSubmit={submit} className="book-form" noValidate>
               <div className="form">
+                {!user && (
+                  <div className="card" style={{ padding: '18px 22px', border: '1px solid color-mix(in srgb, var(--accent) 35%, var(--line))', background: 'color-mix(in srgb, var(--accent) 6%, var(--surface))', borderRadius: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span className="pill gift" style={{ fontSize: '0.72rem' }}>Required</span>
+                      <strong style={{ fontSize: '0.98rem' }}>Sign in to confirm booking</strong>
+                    </div>
+                    <p className="muted" style={{ margin: '0 0 14px', fontSize: '0.88rem', lineHeight: 1.55 }}>
+                      You must have an account to complete your booking. It lets you manage visits, receive confirmations, and earn loyalty discounts.
+                    </p>
+                    <div className="cta-row">
+                      <Link className="btn sm" to={`/login?next=${returnUrl}`}>Sign in</Link>
+                      <Link className="btn ghost sm" to={`/register?next=${returnUrl}`}>Create account</Link>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid-2">
-                  <div className="field"><label htmlFor="bn">Your name</label><input id="bn" value={f.name} onChange={set('name')} autoComplete="name" /></div>
-                  <div className="field"><label htmlFor="bp">Phone number</label><input id="bp" type="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" /></div>
+                  <div className="field">
+                    <label htmlFor="bn">Your name *</label>
+                    <input id="bn" required value={f.name} onChange={set('name')} autoComplete="name" placeholder="Full name" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="bp">Phone number *</label>
+                    <input id="bp" required type="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="08012345678" />
+                  </div>
                 </div>
-                <div className="field"><label htmlFor="be">Email (optional)</label><input id="be" type="email" value={f.email} onChange={set('email')} autoComplete="email" /></div>
-                <div className="field"><span className="lbl">Nail shape</span>
-                  <div className="shape-row">{Object.keys(SHAPES).map((k) => (
-                    <button type="button" key={k} className={`shape ${f.shape === k ? 'on' : ''}`} aria-pressed={f.shape === k} onClick={() => setF({ ...f, shape: k })}><Nail shape={k} color={COLORS[f.color]} />{k}</button>
-                  ))}</div></div>
-                <div className="field"><span className="lbl">Colour idea</span>
-                  <div className="swatches">{Object.entries(COLORS).map(([k, v]) => <button type="button" key={k} title={k} aria-label={k} aria-pressed={f.color === k} className={f.color === k ? 'on' : ''} style={{ background: v }} onClick={() => setF({ ...f, color: k })} />)}</div></div>
-                <div className="field"><label htmlFor="bm">Notes (optional)</label><textarea id="bm" rows="3" value={f.notes} onChange={set('notes')} placeholder="Inspiration, length, anything we should know" /></div>
+
+                <div className="field">
+                  <label htmlFor="be">Email address *</label>
+                  <input id="be" required type="email" value={f.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="bm">Notes (optional)</label>
+                  <textarea id="bm" rows="3" value={f.notes} onChange={set('notes')} placeholder="Length preferences, custom art, or anything we should know" />
+                </div>
+
                 {err && <p className="err" role="alert">{err}</p>}
               </div>
+
               <aside className="card summary-card">
                 <h3>Your booking</h3>
                 <dl className="summary">
@@ -138,7 +202,13 @@ export default function Book() {
                   <div><dt>Duration</dt><dd>{dur(svc.duration)}</dd></div>
                   <div><dt>Price</dt><dd>{money(svc.price, s.currency)}</dd></div>
                 </dl>
-                <button className="btn" disabled={busy}>{busy ? 'Booking…' : 'Confirm booking'}</button>
+                {user ? (
+                  <button className="btn" disabled={busy}>{busy ? 'Booking…' : 'Confirm booking'}</button>
+                ) : (
+                  <Link className="btn" to={`/login?next=${returnUrl}`}>
+                    Sign in to confirm
+                  </Link>
+                )}
                 <button type="button" className="btn ghost" onClick={() => setStep(1)}>Back</button>
               </aside>
             </form>

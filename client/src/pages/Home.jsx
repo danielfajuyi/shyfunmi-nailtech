@@ -11,7 +11,7 @@ import VideoModal from '../components/VideoModal.jsx';
 import VideoCard from '../components/VideoCard.jsx';
 import ServiceRow from '../components/ServiceRow.jsx';
 import {
-  EASE, GlossNail, Magnetic, ScrubText, SplitText, TiltCard, VelocityMarquee, useMedia,
+  EASE, GlossNail, Magnetic, ScrubText, SplitText, TiltCard, useMedia,
 } from '../components/motion.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
@@ -355,17 +355,16 @@ function AboutSection() {
         </div>
 
         <div className="about-content">
-          <Reveal>
-            <p className="about-bio">
-              Hi, I'm <strong>Shyfunmi</strong> — a passionate nail artist based in Port Harcourt, Nigeria.
-              I started Shyfunmi Nails because I believe every woman deserves to feel confident, beautiful,
-              and unapologetically herself — starting from her fingertips.
-            </p>
-            <p className="about-bio">
-              From classic French tips to bold freestyle art, I bring creativity and precision to every set.
-              Whether you're walking into a boardroom or a beach party, I'll make sure your nails tell your story.
-            </p>
-          </Reveal>
+          <div className="hx-about-scrubs">
+            <ScrubText
+              className="about-bio hx-about-scrub"
+              text="Hi, I'm Shyfunmi — a passionate nail artist based in Port Harcourt, Nigeria. I started Shyfunmi Nails because I believe every woman deserves to feel confident, beautiful, and unapologetically herself — starting from her fingertips."
+            />
+            <ScrubText
+              className="about-bio hx-about-scrub"
+              text="From classic French tips to bold freestyle art, I bring creativity and precision to every set. Whether you're walking into a boardroom or a beach party, I'll make sure your nails tell your story."
+            />
+          </div>
           <div className="hx-hl">
             {ABOUT_HIGHLIGHTS.map(({ icon, label, desc }, i) => (
               <Reveal key={label} delay={i * 0.08}>
@@ -411,8 +410,6 @@ export default function Home() {
   return (
     <Page>
       <Hero s={s} photo={heroPhoto} />
-
-      <VelocityMarquee items={STYLES} />
 
       <section className="hx-sec container">
         <div className="hx-head">

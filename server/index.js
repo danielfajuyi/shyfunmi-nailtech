@@ -67,10 +67,13 @@ function createBooking(body, user, force = false) {
   const s = db.settings;
   const svc = db.services.find((x) => x.id === body.serviceId && (x.active || force));
   if (!svc) return { error: 'Choose a service.' };
+  if (!force && !user) return { error: 'Please sign in or create an account to confirm your booking.' };
   const name = clean(body.name || user?.name, 80);
   const phone = clean(body.phone || user?.phone, 25);
+  const email = clean(body.email || user?.email, 120).toLowerCase();
   if (name.length < 2) return { error: 'Enter your name.' };
   if (digits(phone).length < 7) return { error: 'Enter a valid phone number.' };
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { error: 'Enter a valid email address.' };
   const date = clean(body.date, 10), time = clean(body.time, 5);
   if (!isDate(date) || !isTime(time)) return { error: 'Choose a date and time.' };
   if (!force) {
@@ -79,9 +82,9 @@ function createBooking(body, user, force = false) {
   }
   const loyalty = (visitsOf(user?.id, phone) + 1) % s.loyaltyEvery === 0;
   const b = {
-    id: uid(), userId: user?.id || null, name, phone, email: clean(body.email || user?.email, 120),
+    id: uid(), userId: user?.id || null, name, phone, email,
     serviceId: svc.id, serviceName: svc.name, price: svc.price, duration: svc.duration, date, time,
-    shape: clean(body.shape, 30) || 'Not sure yet', color: clean(body.color, 60), notes: clean(body.notes, 500),
+    shape: clean(body.shape, 30) || '', color: clean(body.color, 60) || '', notes: clean(body.notes, 500),
     status: force ? 'confirmed' : 'pending', loyalty, discountPct: loyalty ? s.loyaltyDiscount : 0,
     adminNote: '', createdAt: new Date().toISOString(),
   };

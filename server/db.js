@@ -51,13 +51,31 @@ function apply(saved) {
   const merged = { ...base, ...(saved || {}), settings: { ...base.settings, ...(saved?.settings || {}) } };
   if (!merged.services.length) {
     merged.services = [
-      ['Gel manicure', 'Long-lasting colour with careful prep and shaping.', 90],
-      ['Acrylic and extensions', 'Length and strength in the shape you choose.', 150],
-      ['Cateye and French tips', 'Magnetic shimmer or a clean, classic tip.', 120],
-      ['Custom press-ons', 'Made to fit your nails. Ready to wear and reuse.', 60],
-      ['Freestyle nail art', 'Marble, charms and one-of-a-kind designs.', 180],
-      ['Toe nails and pedicure', 'Clean, neat and polished from head to toe.', 60],
-    ].map(([name, description, duration], order) => ({ id: uid(), name, description, duration, price: 0, active: true, order }));
+      ['Short acrylic set', 'A stylish acrylic set with your choice of minimal nail art.', 180, 20000],
+      ['Medium acrylic set', 'Flawless medium-length acrylic extensions shaped and sculpted to perfection.', 210, 25000],
+      ['Long acrylic set', 'Dramatic long acrylic extensions for a sleek, statement look.', 210, 30000],
+      ['Short Gel_x set', 'Soft gel full-cover extensions for lightweight, natural-feeling nails.', 120, 10000],
+      ['Medium Gel_x set', 'Medium-length soft gel tips offering flexibility, beauty, and strength.', 120, 15000],
+      ['Long Gel_x set', 'Glamorous elongated soft gel extensions tailored to your favorite shape.', 150, 18000],
+      ['Soak off', 'Gentle removal of old nails.', 60, 5000],
+      ['Biab (on short natural nails)', 'Builder in a bottle, on natural nails for strengthening nails.', 120, 18000],
+      ['Biab (medium)', 'Strengthening builder gel overlay for medium-length natural nails.', 150, 25000],
+      ['Biab (long)', 'Reinforcing builder gel overlay designed to protect and support long nails.', 150, 40000],
+      ['Acrylic overlay', 'Strengthen your natural nails with a protective acrylic layer.', 120, 20000],
+      ['Xl (Acrylic)', 'Extra-long acrylics for a striking and glamorous finish.', 210, 45000],
+      ['Gel on natural nails', 'Classic gel polish on your natural nails for a glossy finish.', 60, 5000],
+      ['Xl (Gel)', 'Extra-long gel nails for a dramatic, eye-catching style.', 180, 25000],
+      ['Toe gel on natural nails', 'Smooth gel polish for long-lasting shine on natural toes.', 30, 4000],
+      ['Toe nails with extensions', 'Length and beauty added to your toenails with extensions.', 60, 7000],
+      ['French tips', 'The French tip included alone.', 30, 3000],
+      ['Stones and charms', 'Dazzling crystal stones and luxury charms customized for your set.', 30, 3000],
+      ['Chrome effects', 'Mirror-finish metallic glazed chrome powder over your favorite gel shade.', 30, 2000],
+      ['3D effect', 'Sculpted 3D floral and textural gel art accents that pop.', 30, 3000],
+      ['Marble effect', 'Intricate swirling marble patterns blended with luxury metallic accents.', 30, 3000],
+      ['Red bottoms', 'Signature Louboutin-inspired red under-nail polish finish.', 30, 3000],
+      ['Blooming effect', 'Delicate watercolor and blooming gel floral smoke gradients.', 30, 2000],
+      ['Airbrush design', 'Flawless ombré and aura airbrush nail gradients with crisp stencils.', 90, 3000],
+    ].map(([name, description, duration, price], order) => ({ id: uid(), name, description, duration, price, active: true, order }));
   }
   merged.users = (merged.users || []).map((u) => ({
     avatar: '', provider: u.provider || 'password', notifyEmail: u.notifyEmail !== false, ...u,
