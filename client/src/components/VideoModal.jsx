@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from './Icons.jsx';
+import { getVideoPoster } from './VideoCard.jsx';
 
 const formatTime = (timeInSeconds) => {
   if (isNaN(timeInSeconds) || timeInSeconds === null) return '0:00';
@@ -216,6 +217,7 @@ export default function VideoModal({ item, onClose, onPrev, onNext, hasPrev, has
         <video
           ref={videoRef}
           src={item.url}
+          poster={getVideoPoster(item.url)}
           className="cinematic-video-element"
           playsInline
           muted={isMuted}

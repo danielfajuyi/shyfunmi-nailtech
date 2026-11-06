@@ -1,9 +1,19 @@
 import React, { useRef, useState } from 'react';
 import { PlayIcon } from './Icons.jsx';
 
+export const getVideoPoster = (url = '', fallback = '') => {
+  if (!url) return fallback;
+  if (url.includes('cloudinary.com') && url.includes('/video/upload/')) {
+    // Cloudinary automatically generates the video poster frame when replacing video extension with .jpg
+    return url.replace(/\.(mp4|webm|mov|ogg)(\?.*)?$/i, '.jpg$2');
+  }
+  return fallback;
+};
+
 export default function VideoCard({ video, onClick, className = '' }) {
   const videoRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
+  const posterUrl = video.poster || getVideoPoster(video.url);
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -38,13 +48,24 @@ export default function VideoCard({ video, onClick, className = '' }) {
     >
       <video
         ref={videoRef}
-        src={video.url}
+        src={`${video.url}#t=0.001`}
+        poster={posterUrl}
         className="tile-video"
         muted
         playsInline
         loop
-        preload="metadata"
+        preload="auto"
       />
+
+      {/* Guaranteed crisp poster image for mobile browsers (iOS Safari) */}
+      {posterUrl && (
+        <img
+          src={posterUrl}
+          alt={video.title || video.category || 'Nail set preview'}
+          className={`video-card-poster ${isHovered ? 'is-playing' : ''}`}
+          loading="lazy"
+        />
+      )}
 
       {/* Dark Subtle Gradient Overlay */}
       <div className="video-card-gradient" />
