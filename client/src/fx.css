@@ -1,0 +1,108 @@
+/* =====================================================================
+   Site-wide motion layer (loaded after styles.css).
+   Public pages get the full treatment; dashboards get the same language
+   at lower intensity (short fades, gentle lifts) so they stay fast to use.
+   ===================================================================== */
+
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 50%, var(--line)) transparent; }
+
+/* ---------- Auto scroll-reveal (added by FxLayer; removed again after the entrance) ---------- */
+.stat, .bitem, .profile-stat, .timeline-content, .loyalty-card, .mitem .tile, .chip, .faq-item {
+  transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease), border-color 0.3s, background 0.3s, color 0.3s; }
+.fx { opacity: 0; transform: translateY(28px) scale(0.985); will-change: opacity, transform;
+  transition: opacity 0.85s var(--ease) var(--fx-d, 0s), transform 0.95s var(--ease) var(--fx-d, 0s); }
+.fx.fx-in { opacity: 1; transform: none; }
+.admin .fx, .admin-login-wrap .fx { transform: translateY(12px); transition-duration: 0.5s, 0.55s; }
+@media (prefers-reduced-motion: reduce) { .fx { opacity: 1 !important; transform: none !important; transition: none !important; } }
+
+/* ---------- Hover polish ---------- */
+.stat:hover, .bitem:hover, .profile-stat:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); box-shadow: 0 22px 40px -26px rgba(42, 22, 38, 0.45); }
+.chip:hover:not(.on) { transform: translateY(-2px); border-color: var(--accent); }
+.links a { position: relative; }
+.links a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 1.5px; background: var(--accent); transform: scaleX(0); transform-origin: 100% 50%; transition: transform 0.45s var(--ease); }
+.links a:hover::after, .links a.active::after { transform: scaleX(1); transform-origin: 0 50%; }
+.btn { position: relative; overflow: hidden; isolation: isolate; }
+.btn::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; transform: translateX(-130%);
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.34) 50%, transparent 65%); transition: transform 0.85s var(--ease); }
+.btn:hover:not(:disabled)::after { transform: translateX(130%); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+tbody tr { transition: background 0.25s; }
+tbody tr:hover td { background: color-mix(in srgb, var(--blush) 38%, transparent); }
+
+/* ---------- Cursor ---------- */
+.fx-cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 9999; display: none; opacity: 0; }
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) { .fx-cursor { display: block; } }
+.fx-cursor.ring { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent); transition: background 0.25s, border-color 0.25s; }
+.fx-cursor.ring.hot { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
+.fx-cursor.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* ---------- Page header (PageHero) ---------- */
+.ph { display: grid; gap: 24px; align-items: center; }
+.ph.with-scene { grid-template-columns: 1.25fr 0.75fr; }
+.ph .ph-h1 { font: 300 clamp(2.4rem, 5.6vw, 4.8rem) / 1.03 var(--display) !important; letter-spacing: -0.04em; }
+.ph .lead { max-width: 50ch; }
+.ph-scene { position: relative; height: 250px; perspective: 1100px; }
+.ph-scene .hx-stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+.ph-disc { left: 50%; top: 50%; width: 74%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) translateZ(-110px);
+  background: radial-gradient(circle at 30% 24%, color-mix(in srgb, var(--blush) 90%, #fff), color-mix(in srgb, var(--accent) 36%, var(--bg)) 70%, transparent 73%);
+  box-shadow: 0 40px 70px -24px color-mix(in srgb, var(--accent) 38%, transparent); }
+@media (max-width: 760px) { .ph.with-scene { grid-template-columns: 1fr; } .ph-scene { display: none; } }
+
+/* ---------- Auth / admin-login backdrop ---------- */
+.auth-page { position: relative; }
+.auth-page .auth { position: relative; z-index: 1; }
+.auth-bd { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.auth-nail { position: absolute; }
+.auth-nail svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 20px 20px rgba(42, 22, 38, 0.35)); }
+.auth-orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.5; }
+.auth-orb.a { width: 300px; height: 300px; left: 8%; top: 12%; background: var(--accent); opacity: 0.28; }
+.auth-orb.b { width: 260px; height: 260px; right: 6%; bottom: 8%; background: #2D4BE0; opacity: 0.2; }
+.admin-login-wrap { position: relative; overflow: hidden; }
+.admin-login-wrap .admin-login-box { position: relative; z-index: 1; }
+@media (max-width: 640px) { .auth-nail { opacity: 0.35 !important; } }
+
+/* ---------- Footer wordmark ---------- */
+.foot-mark { overflow: hidden; margin-top: 36px; padding-inline: 3vw; text-align: center; user-select: none; }
+.foot-mark span { display: inline-block; white-space: nowrap; font: 300 clamp(2.4rem, 11.6vw, 11rem) / 0.9 var(--display); letter-spacing: -0.06em; padding-bottom: 0.06em;
+  color: transparent; -webkit-text-stroke: 1.2px color-mix(in srgb, var(--on-deep) 30%, transparent); }
+
+/* ---------- Account: loyalty card ---------- */
+.loyalty-card { position: relative; overflow: hidden; }
+.loyalty-card::after { content: ''; position: absolute; inset: -40%; pointer-events: none; background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.16) 50%, transparent 58%); animation: fxSheen 7s ease-in-out infinite; }
+.loyalty-card .stamps > * { animation: fxPop 0.7s var(--ease) both; }
+.loyalty-card .stamps > *:nth-child(1) { animation-delay: 0.44s; }
+.loyalty-card .stamps > *:nth-child(2) { animation-delay: 0.53s; }
+.loyalty-card .stamps > *:nth-child(3) { animation-delay: 0.62s; }
+.loyalty-card .stamps > *:nth-child(4) { animation-delay: 0.71s; }
+.loyalty-card .stamps > *:nth-child(5) { animation-delay: 0.80s; }
+.loyalty-card .stamps > *:nth-child(6) { animation-delay: 0.89s; }
+.loyalty-card .stamps > *:nth-child(7) { animation-delay: 0.98s; }
+.loyalty-card .stamps > *:nth-child(8) { animation-delay: 1.07s; }
+.loyalty-card .stamps > *:nth-child(9) { animation-delay: 1.16s; }
+.loyalty-card .stamps > *:nth-child(10) { animation-delay: 1.25s; }
+.loyalty-card .stamps > *:nth-child(11) { animation-delay: 1.34s; }
+.loyalty-card .stamps > *:nth-child(12) { animation-delay: 1.43s; }
+@keyframes fxSheen { 0% { transform: translateX(-70%); } 55%, 100% { transform: translateX(70%); } }
+@keyframes fxPop { from { opacity: 0; transform: scale(0.3) rotate(-30deg); } to { opacity: 1; transform: none; } }
+
+/* ---------- Admin shell ---------- */
+.side nav a { position: relative; transition: color 0.2s, background 0.3s, transform 0.35s var(--ease); animation: fxSlide 0.6s var(--ease) both; }
+.side nav a:hover { transform: translateX(4px); }
+.side nav a.on::before { content: ''; position: absolute; left: 5px; top: 50%; width: 4px; height: 4px; margin-top: -2px; border-radius: 50%; background: var(--accent); }
+.side nav a:nth-child(1) { animation-delay: 0.095s; }
+.side nav a:nth-child(2) { animation-delay: 0.140s; }
+.side nav a:nth-child(3) { animation-delay: 0.185s; }
+.side nav a:nth-child(4) { animation-delay: 0.230s; }
+.side nav a:nth-child(5) { animation-delay: 0.275s; }
+.side nav a:nth-child(6) { animation-delay: 0.320s; }
+.side nav a:nth-child(7) { animation-delay: 0.365s; }
+.side nav a:nth-child(8) { animation-delay: 0.410s; }
+.side nav a:nth-child(9) { animation-delay: 0.455s; }
+.side nav a:nth-child(10) { animation-delay: 0.500s; }
+.side nav a:nth-child(11) { animation-delay: 0.545s; }
+.side nav a:nth-child(12) { animation-delay: 0.590s; }
+@keyframes fxSlide { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.bar i { transform-origin: 50% 100%; animation: fxGrow 0.9s var(--ease) both; }
+@keyframes fxGrow { from { transform: scaleY(0); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .side nav a, .bar i, .loyalty-card .stamps > *, .loyalty-card::after { animation: none !important; } }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo.jsx";
+import { AuthBackdrop } from "../components/PageHero.jsx";
 import { api } from "../api.js";
 import { useApp } from "../context.jsx";
 import { useTitle } from "../hooks.js";
@@ -38,6 +39,7 @@ export default function AdminLogin() {
 
   return (
     <div className="admin-login-wrap">
+      <AuthBackdrop />
       <div className="admin-login-box card">
         <div className="admin-login-badge">
           <span>ADMINISTRATION PORTAL</span>

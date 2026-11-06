@@ -4,6 +4,8 @@ import { toast } from '../components/Toast.jsx';
 import { useTheme } from '../components/Layout.jsx';
 import Logo from '../components/Logo.jsx';
 import Modal from '../components/Modal.jsx';
+import FxLayer from '../components/FxLayer.jsx';
+import { CountUp } from '../components/motion.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useLoad, useTitle } from '../hooks.js';
@@ -50,6 +52,7 @@ export default function Admin() {
 
   return (
     <div className="admin">
+      <FxLayer />
       <aside className={`side ${menu ? 'open' : ''}`}>
         <Link to="/" className="logo"><Logo size={28} /> <span>Shyfunmi</span></Link>
         <nav>
@@ -94,7 +97,7 @@ function Overview() {
         ].map(([l, v, to]) => (
           <div className="stat" key={l}>
             <small>{l}</small>
-            <b>{v}</b>
+            <b><CountUp to={v} /></b>
             {to && <Link to={to}>View</Link>}
           </div>
         ))}

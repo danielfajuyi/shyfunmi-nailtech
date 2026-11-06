@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
+import PageHero from '../components/PageHero.jsx';
 import { toast } from '../components/Toast.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
@@ -55,7 +56,7 @@ export default function Contact() {
 
   return (
     <Page className="container section page-top">
-      <Reveal><h1 className="h1s">Visit and contact</h1></Reveal>
+      <PageHero kicker="Say hello" title={'Visit and\ncontact'} />
 
       <div className="split" style={{ marginTop: 36 }}>
         <Reveal className="card">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Page from '../components/Page.jsx';
+import { AuthBackdrop } from '../components/PageHero.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
@@ -27,7 +28,8 @@ export default function Reset() {
 
   if (!email || !token) {
     return (
-      <Page className="container section page-top">
+      <Page className="container section page-top auth-page">
+        <AuthBackdrop />
         <div className="auth card">
           <h1 className="h1s sm">Link expired</h1>
           <p className="muted">This reset link is missing details. Request a new one.</p>
@@ -38,7 +40,8 @@ export default function Reset() {
   }
 
   return (
-    <Page className="container section page-top">
+    <Page className="container section page-top auth-page">
+      <AuthBackdrop />
       <div className="auth card">
         <h1 className="h1s sm">Choose a new password</h1>
         <p className="muted">For {email}</p>

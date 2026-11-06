@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Page from '../components/Page.jsx';
+import PageHero from '../components/PageHero.jsx';
 import { COLORS, Nail, SHAPES } from '../components/Nail.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
@@ -79,7 +80,7 @@ export default function Book() {
 
   return (
     <Page className="container section page-top">
-      <h1 className="h1s">Book your appointment</h1>
+      <PageHero scene={false} kicker="Book online" title="Book your appointment" />
       <ol className="stepper">{STEPS.map((t, i) => <li key={t} className={i === step ? 'on' : i < step ? 'past' : ''}><span>{i + 1}</span>{t}</li>)}</ol>
       <AnimatePresence mode="wait">
         <motion.div key={step} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}>

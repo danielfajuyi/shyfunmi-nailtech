@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Page from '../components/Page.jsx';
+import { AuthBackdrop } from '../components/PageHero.jsx';
 import { api } from '../api.js';
 import { useTitle } from '../hooks.js';
 
@@ -20,7 +21,8 @@ export default function Forgot() {
   };
 
   return (
-    <Page className="container section page-top">
+    <Page className="container section page-top auth-page">
+      <AuthBackdrop />
       <div className="auth card">
         <h1 className="h1s sm">Reset password</h1>
         {done ? (

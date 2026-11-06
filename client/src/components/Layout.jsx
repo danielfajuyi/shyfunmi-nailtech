@@ -3,6 +3,8 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context.jsx';
 import Logo from './Logo.jsx';
+import FxLayer from './FxLayer.jsx';
+import { FootMark, ScrollProgress } from './motion.jsx';
 
 const LINKS = [['/', 'Home'], ['/services', 'Services'], ['/gallery', 'Gallery'], ['/training', 'Training'], ['/contact', 'Contact']];
 
@@ -39,6 +41,8 @@ export default function Layout() {
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
+      <ScrollProgress />
+      <FxLayer cursor />
       <header className={`nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="container nav-in">
           <Link to="/" className="logo"><Logo size={32} /> <span>{s.businessName || 'Shyfunmi Nails'}</span></Link>
@@ -100,6 +104,7 @@ export default function Layout() {
             )}
           </div>
         </div>
+        <FootMark text={s.businessName || 'Shyfunmi Nails'} />
         <div className="container fine"><span>© {new Date().getFullYear()} {s.businessName}</span><span>Nails that transform confidence.</span></div>
       </footer>
     </>

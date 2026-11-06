@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
+import PageHero from '../components/PageHero.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
@@ -22,8 +23,7 @@ export default function Training() {
   return (
     <Page className="container section page-top split">
       <Reveal>
-        <h1 className="h1s">Learn to do nails.</h1>
-        <p className="lead">Nail training is available for beginners and for techs who want to sharpen their skills.</p>
+        <PageHero scene={false} kicker="Training" title="Learn to do nails." lead="Nail training is available for beginners and for techs who want to sharpen their skills." />
         <ul className="ticks">{LEARN.map((x) => <li key={x}>{x}</li>)}</ul>
       </Reveal>
       <Reveal delay={0.1} className="card">

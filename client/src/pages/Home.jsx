@@ -9,12 +9,12 @@ import Reveal from '../components/Reveal.jsx';
 import { Placeholder } from '../components/Nail.jsx';
 import VideoModal from '../components/VideoModal.jsx';
 import VideoCard from '../components/VideoCard.jsx';
+import ServiceRow from '../components/ServiceRow.jsx';
 import {
-  EASE, GlossNail, Magnetic, ScrollProgress, ScrubText, SplitText, TiltCard, VelocityMarquee, useMedia,
+  EASE, GlossNail, Magnetic, ScrubText, SplitText, TiltCard, VelocityMarquee, useMedia,
 } from '../components/motion.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
-import { dur, money } from '../utils.js';
 import '../home.css';
 
 const STYLES = ['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails'];
@@ -171,29 +171,6 @@ function Hero({ s, photo }) {
       </div>
       <div className="hx-scroll-cue" aria-hidden="true"><span>Scroll</span><i /></div>
     </section>
-  );
-}
-
-/* =====================================================================
-   SERVICES: rows with a cursor-following glow wipe
-   ===================================================================== */
-function ServiceRow({ v, i, s }) {
-  const glow = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty('--x', `${e.clientX - r.left}px`);
-    e.currentTarget.style.setProperty('--y', `${e.clientY - r.top}px`);
-  };
-  return (
-    <Reveal delay={i * 0.05} y={40}>
-      <Link to={`/book?service=${v.id}`} className="hx-row" onPointerMove={glow}>
-        <span className="hx-idx">0{i + 1}</span>
-        <h3 className="hx-row-title">{v.name}</h3>
-        <p>{v.description}</p>
-        <span className="meta">{dur(v.duration)}<b>{money(v.price, s.currency)}</b></span>
-        <span className="hx-arrow" aria-hidden="true">↗</span>
-        <i className="hx-wipe" aria-hidden="true" />
-      </Link>
-    </Reveal>
   );
 }
 
@@ -433,7 +410,6 @@ export default function Home() {
 
   return (
     <Page>
-      <ScrollProgress />
       <Hero s={s} photo={heroPhoto} />
 
       <VelocityMarquee items={STYLES} />

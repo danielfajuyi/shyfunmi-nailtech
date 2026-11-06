@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
+import PageHero from '../components/PageHero.jsx';
+import { TiltCard } from '../components/motion.jsx';
 import { Placeholder } from '../components/Nail.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
@@ -48,10 +50,7 @@ export default function Gallery() {
 
   return (
     <Page className="container section page-top gallery-page-wrap">
-      <Reveal>
-        <h1 className="h1s">Gallery</h1>
-        <p className="lead">A look at the sets clients ask for most.</p>
-      </Reveal>
+      <PageHero kicker="Portfolio" title="Gallery" lead="A look at the sets clients ask for most." />
 
       {/* Filter tabs */}
       <div className="filters" role="group" aria-label="Filter by style">
@@ -71,6 +70,7 @@ export default function Gallery() {
         <div className="masonry gallery-grid-fixed">
           {list.map((p, i) => (
             <div key={p.id} className="mitem">
+              <TiltCard className="hx-work-card" max={7}>
               {isVideo(p.url) ? (
                 <VideoCard
                   video={p}
@@ -88,6 +88,7 @@ export default function Gallery() {
                   </div>
                 </button>
               )}
+              </TiltCard>
             </div>
           ))}
         </div>

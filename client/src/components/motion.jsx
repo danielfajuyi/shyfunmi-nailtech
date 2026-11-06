@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import {
-  motion, useAnimationFrame, useMotionTemplate, useMotionValue, useReducedMotion,
+  animate, motion, useAnimationFrame, useMotionTemplate, useMotionValue, useReducedMotion,
   useScroll, useSpring, useTransform, useVelocity,
 } from 'framer-motion';
 import { SHAPES } from './Nail.jsx';
@@ -180,6 +180,37 @@ export function VelocityMarquee({ items, base = -0.035 }) {
           ))}
         </motion.div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Count-up number (dashboard stats). Non-numeric values pass through untouched ---------- */
+export function CountUp({ to, duration = 1.1 }) {
+  const reduce = useReducedMotion();
+  const n = Number(to);
+  const ok = to !== null && to !== undefined && String(to).trim() !== '' && Number.isFinite(n);
+  const last = useRef(0);
+  const [v, setV] = useState(ok && !reduce ? 0 : to);
+  useEffect(() => {
+    if (!ok || reduce) { setV(to); return undefined; }
+    const c = animate(last.current, n, {
+      duration, ease: EASE,
+      onUpdate: (x) => { last.current = x; setV(Math.round(x)); },
+    });
+    return () => c.stop();
+  }, [n, ok, reduce, duration, to]);
+  return <>{v}</>;
+}
+
+/* ---------- Giant footer wordmark that rises into view ---------- */
+export function FootMark({ text }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
+  const y = useTransform(scrollYProgress, [0, 1], ['45%', '0%']);
+  const opacity = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
+  return (
+    <div ref={ref} className="foot-mark" aria-hidden="true">
+      <motion.span style={{ y, opacity }}>{text}</motion.span>
     </div>
   );
 }
