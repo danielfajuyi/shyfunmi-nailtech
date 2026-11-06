@@ -270,40 +270,8 @@ export default function VideoModal({ item, onClose, onPrev, onNext, hasPrev, has
 
               {/* Controls Buttons Row */}
               <div className="cinematic-actions-row">
-                {/* Left: Rewind 10s */}
-                <button
-                  type="button"
-                  className="cinematic-icon-btn"
-                  onClick={(e) => handleSeek(-10, e)}
-                  aria-label="Rewind 10 seconds"
-                  title="Rewind 10s"
-                >
-                  <RotateCcwIcon size={18} />
-                </button>
-
-                {/* Center: Play/Pause */}
-                <button
-                  type="button"
-                  className="cinematic-play-btn"
-                  onClick={togglePlay}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
-                </button>
-
-                {/* Right: Forward 10s */}
-                <button
-                  type="button"
-                  className="cinematic-icon-btn"
-                  onClick={(e) => handleSeek(10, e)}
-                  aria-label="Forward 10 seconds"
-                  title="Forward 10s"
-                >
-                  <RotateCwIcon size={18} />
-                </button>
-
-                {/* Secondary controls: Volume & Fullscreen */}
-                <div className="cinematic-sub-actions">
+                {/* Left: Volume / Mute */}
+                <div className="cinematic-action-group left">
                   <button
                     type="button"
                     className="cinematic-icon-btn"
@@ -313,6 +281,42 @@ export default function VideoModal({ item, onClose, onPrev, onNext, hasPrev, has
                   >
                     {isMuted ? <VolumeXIcon size={18} /> : <Volume2Icon size={18} />}
                   </button>
+                </div>
+
+                {/* Center: Rewind, Play/Pause, Forward */}
+                <div className="cinematic-action-group center">
+                  <button
+                    type="button"
+                    className="cinematic-icon-btn"
+                    onClick={(e) => handleSeek(-10, e)}
+                    aria-label="Rewind 10 seconds"
+                    title="Rewind 10s"
+                  >
+                    <RotateCcwIcon size={18} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cinematic-play-btn"
+                    onClick={togglePlay}
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {isPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cinematic-icon-btn"
+                    onClick={(e) => handleSeek(10, e)}
+                    aria-label="Forward 10 seconds"
+                    title="Forward 10s"
+                  >
+                    <RotateCwIcon size={18} />
+                  </button>
+                </div>
+
+                {/* Right: Fullscreen */}
+                <div className="cinematic-action-group right">
                   <button
                     type="button"
                     className="cinematic-icon-btn"

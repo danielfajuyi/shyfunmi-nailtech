@@ -612,9 +612,27 @@ form.bitem.edit-grid { display: grid; } .edit-grid .check { padding-bottom: 12px
 .cinematic-actions-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+}
+.cinematic-action-group {
+  display: flex;
+  align-items: center;
+}
+.cinematic-action-group.left {
+  flex: 1;
+  justify-content: flex-start;
+}
+.cinematic-action-group.center {
+  display: flex;
+  align-items: center;
   justify-content: center;
   gap: 16px;
-  position: relative;
+}
+.cinematic-action-group.right {
+  flex: 1;
+  justify-content: flex-end;
 }
 .cinematic-icon-btn {
   width: 36px;
@@ -627,6 +645,7 @@ form.bitem.edit-grid { display: grid; } .edit-grid .check { padding-bottom: 12px
   place-items: center;
   cursor: pointer;
   transition: transform 0.2s, background 0.2s;
+  flex-shrink: 0;
 }
 .cinematic-icon-btn:hover {
   transform: scale(1.1);
@@ -644,16 +663,32 @@ form.bitem.edit-grid { display: grid; } .edit-grid .check { padding-bottom: 12px
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
   transition: transform 0.2s var(--ease), box-shadow 0.2s;
+  flex-shrink: 0;
 }
 .cinematic-play-btn:hover {
   transform: scale(1.1);
   box-shadow: 0 6px 24px rgba(255, 255, 255, 0.4);
 }
-.cinematic-sub-actions {
-  position: absolute;
-  right: 0;
-  display: flex;
-  gap: 8px;
+@media (max-width: 560px) {
+  .cinematic-controls-bar {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    padding: 12px 14px;
+    border-radius: 18px;
+    gap: 8px;
+  }
+  .cinematic-action-group.center {
+    gap: 12px;
+  }
+  .cinematic-icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .cinematic-play-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 /* Fallback video tag */
