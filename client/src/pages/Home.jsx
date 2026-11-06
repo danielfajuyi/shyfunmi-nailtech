@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AnimatePresence, motion, useAnimationFrame, useMotionValue, useReducedMotion,
-  useScroll, useSpring, useTransform, useVelocity,
+  AnimatePresence, motion, useReducedMotion,
+  useScroll, useSpring, useTransform, useMotionValue, useVelocity,
 } from 'framer-motion';
 import Page from '../components/Page.jsx';
 import Reveal from '../components/Reveal.jsx';
@@ -56,13 +56,13 @@ const SPARKS = Array.from({ length: 18 }, (_, i) => ({
 
 function HeroScene({ photo }) {
   const reduce = useReducedMotion();
-  const mx = useMotionValue(0), my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 80, damping: 16, mass: 0.7 });
-  const sy = useSpring(my, { stiffness: 80, damping: 16, mass: 0.7 });
-  const ix = useMotionValue(0), iy = useMotionValue(0);
-  useAnimationFrame((t) => { if (reduce) return; ix.set(Math.sin(t / 1700)); iy.set(Math.cos(t / 2300)); });
-  const rotateY = useTransform([sx, ix], ([a, b]) => a * 18 + b * 6);
-  const rotateX = useTransform([sy, iy], ([a, b]) => -a * 14 + b * 4);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  // Single spring per axis — NO competing useAnimationFrame idle sway on same values
+  const sx = useSpring(mx, { stiffness: 60, damping: 18, mass: 0.8 });
+  const sy = useSpring(my, { stiffness: 60, damping: 18, mass: 0.8 });
+  const rotateY = useTransform(sx, [-1, 1], [-16, 16]);
+  const rotateX = useTransform(sy, [-1, 1], [12, -12]);
 
   useEffect(() => {
     if (reduce) return undefined;
@@ -77,52 +77,55 @@ function HeroScene({ photo }) {
 
   return (
     <div className="hx-scene" aria-hidden="true">
-      <motion.div className="hx-stage" style={{ rotateX, rotateY }}>
-        <div className="hx-disc" />
-        <div className="hx-ring a" />
-        <div className="hx-ring b" />
+      {/* hx-sway is a pure CSS animation wrapper — no JS, no conflicts with spring */}
+      <div className="hx-sway">
+        <motion.div className="hx-stage" style={{ rotateX, rotateY }}>
+          <div className="hx-disc" />
+          <div className="hx-ring a" />
+          <div className="hx-ring b" />
 
-        {SPARKS.map((p, i) => (
-          <span key={i} className="hx-spark" style={{
-            left: `${p.x}%`, top: `${p.y}%`, width: p.s, height: p.s, transform: `translateZ(${p.z}px)`, animationDelay: `${p.d}s`,
-          }} />
-        ))}
+          {SPARKS.map((p, i) => (
+            <span key={i} className="hx-spark" style={{
+              left: `${p.x}%`, top: `${p.y}%`, width: p.s, height: p.s, transform: `translateZ(${p.z}px)`, animationDelay: `${p.d}s`,
+            }} />
+          ))}
 
-        <div className="hx-card-layer">
-          <motion.div className="hx-card" animate={reduce ? undefined : { y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
-            {photo ? (
-              <img src={photo.url} alt="" loading="eager" />
-            ) : (
-              <div className="hx-card-art">
-                <GlossNail shape="Almond" from="#F8CFE0" to="#C0558F" className="n1" />
-                <GlossNail shape="Coffin" from="#8E4BB0" to="#2A1233" className="n2" />
-                <GlossNail shape="Stiletto" from="#8FA2FF" to="#2D4BE0" className="n3" />
-              </div>
-            )}
-            <span className="hx-sheen" />
-            <span className="hx-card-tag"><i /> {photo ? (photo.title || photo.category || 'Latest set') : 'Made with care'}</span>
-          </motion.div>
-        </div>
-
-        {NAILS.map((n, i) => (
-          <div key={i} className="hx-nail-layer" style={{ left: n.x, top: n.y, width: `calc(${n.w}px * var(--s, 1))`, transform: `translateZ(${n.z}px)` }}>
-            <motion.div
-              initial={{ rotate: n.rot }}
-              animate={reduce ? undefined : { y: [0, -16, 0], rotate: [n.rot - 5, n.rot + 5, n.rot - 5] }}
-              transition={{ duration: 5.5 + n.d, repeat: Infinity, ease: 'easeInOut', delay: n.d }}
-            >
-              <GlossNail shape={n.shape} from={n.from} to={n.to} />
+          <div className="hx-card-layer">
+            <motion.div className="hx-card" animate={reduce ? undefined : { y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
+              {photo ? (
+                <img src={photo.url} alt="" loading="eager" />
+              ) : (
+                <div className="hx-card-art">
+                  <GlossNail shape="Almond" from="#F8CFE0" to="#C0558F" className="n1" />
+                  <GlossNail shape="Coffin" from="#8E4BB0" to="#2A1233" className="n2" />
+                  <GlossNail shape="Stiletto" from="#8FA2FF" to="#2D4BE0" className="n3" />
+                </div>
+              )}
+              <span className="hx-sheen" />
+              <span className="hx-card-tag"><i /> {photo ? (photo.title || photo.category || 'Latest set') : 'Made with care'}</span>
             </motion.div>
           </div>
-        ))}
 
-        {CHIPS.map((c, i) => (
-          <div key={c.t} className={`hx-chip-layer c${i}`} style={{ left: c.x, top: c.y, transform: `translateZ(${c.z}px)` }}>
-            <motion.span className="hx-chip" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.1 + i * 0.18, duration: 0.7, ease: EASE }}>{c.t}</motion.span>
-          </div>
-        ))}
-      </motion.div>
+          {NAILS.map((n, i) => (
+            <div key={i} className="hx-nail-layer" style={{ left: n.x, top: n.y, width: `calc(${n.w}px * var(--s, 1))`, transform: `translateZ(${n.z}px)` }}>
+              <motion.div
+                initial={{ rotate: n.rot }}
+                animate={reduce ? undefined : { y: [0, -16, 0], rotate: [n.rot - 5, n.rot + 5, n.rot - 5] }}
+                transition={{ duration: 5.5 + n.d, repeat: Infinity, ease: 'easeInOut', delay: n.d }}
+              >
+                <GlossNail shape={n.shape} from={n.from} to={n.to} />
+              </motion.div>
+            </div>
+          ))}
+
+          {CHIPS.map((c, i) => (
+            <div key={c.t} className={`hx-chip-layer c${i}`} style={{ left: c.x, top: c.y, transform: `translateZ(${c.z}px)` }}>
+              <motion.span className="hx-chip" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 1.1 + i * 0.18, duration: 0.7, ease: EASE }}>{c.t}</motion.span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -134,7 +137,8 @@ function Hero({ s, photo }) {
   const copyO = useTransform(p, [0, 0.75], [1, 0]);
   const sceneY = useTransform(p, [0, 1], [0, 90]);
   const sceneS = useTransform(p, [0, 1], [1, 0.8]);
-  const sceneR = useTransform(p, [0, 1], [0, 16]);
+  // ↓ removed sceneR (rotateX on outer scroll wrapper) — it nested a rotateX on top of the
+  //   inner stage rotateX that Framer drives for mouse tilt, causing double-perspective jank.
   const sceneO = useTransform(p, [0, 0.9], [1, 0.1]);
 
   const spot = (e) => {
@@ -166,7 +170,7 @@ function Hero({ s, photo }) {
           </motion.div>
         </motion.div>
 
-        <motion.div className="hx-scene-wrap" style={{ y: sceneY, scale: sceneS, rotateX: sceneR, opacity: sceneO, transformPerspective: 1400 }}>
+        <motion.div className="hx-scene-wrap" style={{ y: sceneY, scale: sceneS, opacity: sceneO }}>
           <HeroScene photo={photo} />
         </motion.div>
       </div>

@@ -31,8 +31,17 @@
 .hx-hero .lead { max-width: 44ch; }
 
 .hx-scene-wrap { position: relative; height: min(660px, 74vh); min-height: 430px; will-change: transform; }
-.hx-scene { --s: 1; position: absolute; inset: 0; perspective: 1400px; }
-.hx-stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+/* Single perspective source — only here, not on hx-scene-wrap */
+.hx-scene { --s: 1; position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 50%; }
+.hx-sway { position: absolute; inset: 0; transform-style: preserve-3d; animation: hxIdleSway 8s ease-in-out infinite; }
+@keyframes hxIdleSway {
+  0%, 100% { transform: rotateX(3deg) rotateY(5deg); }
+  25%       { transform: rotateX(-2deg) rotateY(-4deg); }
+  50%       { transform: rotateX(4deg) rotateY(3deg); }
+  75%       { transform: rotateX(-3deg) rotateY(5deg); }
+}
+/* Mouse-driven stage — framer spring applies rotateX/rotateY on top of sway */
+.hx-stage { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
 .hx-stage > * { position: absolute; }
 
 .hx-disc { left: 50%; top: 50%; width: 80%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%) translateZ(-150px);
@@ -232,4 +241,5 @@
 /* Reduced motion: keep layout, drop the pinned scene tricks */
 @media (prefers-reduced-motion: reduce) {
   .hx-scene-wrap, .hx-step, .hx-about-frame { transform: none !important; opacity: 1 !important; }
+  .hx-sway { animation: none !important; }
 }
