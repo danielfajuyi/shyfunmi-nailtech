@@ -250,7 +250,7 @@ function HeroScene({ photo }) {
                 <i />{" "}
                 {photo
                   ? photo.title || photo.category || "Latest set"
-                  : "Made with care"}
+                  : "Fixed with care"}
               </span>
             </motion.div>
           </div>
@@ -345,7 +345,7 @@ function Hero({ s, photo }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            Nail tech · Port Harcourt
+            Got somewhere to be? Get your nails done first.
           </motion.span>
           <SplitText
             as="h1"
@@ -362,8 +362,9 @@ function Hero({ s, photo }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.85, duration: 0.8 }}
           >
-            Nails that transform confidence. Cateye, French tips, freestyles and
-            press-ons, made with care at {s.address}.
+            Birthday, wedding, work or a quiet weekend, your nails should look
+            as good as you feel. Book your set at Peter Odili Road, Port
+            Harcourt, and step out feeling sure of yourself.
           </motion.p>
           <motion.div
             className="cta-row"
@@ -389,7 +390,7 @@ function Hero({ s, photo }) {
             transition={{ delay: 1.3, duration: 0.7 }}
           >
             <span className="badge">✦ Port Harcourt</span>
-            <span className="badge">✦ Loyalty rewards</span>
+            <span className="badge">✦ Rewards for returning clients</span>
             <span className="badge">✦ Book online</span>
           </motion.div>
         </motion.div>
