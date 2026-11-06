@@ -13,6 +13,7 @@ import ServiceRow from '../components/ServiceRow.jsx';
 import {
   EASE, GlossNail, Magnetic, ScrubText, SplitText, TiltCard, useMedia,
 } from '../components/motion.jsx';
+import { PaletteIcon, SparklesIcon, HeartIcon, GraduationCapIcon } from '../components/Icons.jsx';
 import { useApp } from '../context.jsx';
 import { useTitle } from '../hooks.js';
 import '../home.css';
@@ -24,10 +25,10 @@ const STEPS = [
   ['Get confirmed', 'Shyfunmi confirms your booking, and you can track it in your account.', 'Stiletto', '#8FA2FF', '#2D4BE0'],
 ];
 const ABOUT_HIGHLIGHTS = [
-  { icon: '💅', label: 'Expert Nail Artist', desc: 'Years of professional experience crafting stunning nail art.' },
-  { icon: '✨', label: 'Premium Products', desc: 'Only top-quality, long-lasting products on every client.' },
-  { icon: '❤️', label: 'Client-First Approach', desc: 'Your comfort, style and confidence are always the priority.' },
-  { icon: '🎓', label: 'Certified Trainer', desc: 'Teaching the next generation of nail technicians in Port Harcourt.' },
+  { icon: PaletteIcon, label: 'Expert Nail Artist', desc: 'Years of professional experience crafting stunning nail art.' },
+  { icon: SparklesIcon, label: 'Premium Products', desc: 'Only top-quality, long-lasting products on every client.' },
+  { icon: HeartIcon, label: 'Client-First Approach', desc: 'Your comfort, style and confidence are always the priority.' },
+  { icon: GraduationCapIcon, label: 'Certified Trainer', desc: 'Teaching the next generation of nail technicians in Port Harcourt.' },
 ];
 
 const isVideoUrl = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || url.includes('video/upload/');
@@ -366,10 +367,10 @@ function AboutSection() {
             />
           </div>
           <div className="hx-hl">
-            {ABOUT_HIGHLIGHTS.map(({ icon, label, desc }, i) => (
+            {ABOUT_HIGHLIGHTS.map(({ icon: Icon, label, desc }, i) => (
               <Reveal key={label} delay={i * 0.08}>
                 <TiltCard className="hx-hl-card" max={7}>
-                  <span className="hx-hl-icon" aria-hidden="true">{icon}</span>
+                  <span className="hx-hl-icon" aria-hidden="true"><Icon size={20} /></span>
                   <div><strong>{label}</strong><p>{desc}</p></div>
                 </TiltCard>
               </Reveal>

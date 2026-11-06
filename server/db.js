@@ -28,7 +28,7 @@ const defaults = () => ({
   users: [], services: [], bookings: [], photos: [], reviews: [], enrollments: [], messages: [],
   settings: {
     businessName: 'Shyfunmi Nails', tagline: 'Your confidence starts here',
-    address: 'Peter Odili Road, Port Harcourt', phone: '', whatsapp: '',
+    address: 'Peter Odili Road, Port Harcourt', phone: '+2349159814635', whatsapp: '2349159814635',
     instagram: 'shyfunmi_nails', tiktok: 'shyfunmi_nails', currency: '₦',
     timezone: 'Africa/Lagos', slotStep: 60, blockedDates: [],
     loyaltyEvery: 5, loyaltyDiscount: 30,

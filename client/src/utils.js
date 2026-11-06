@@ -1,7 +1,12 @@
 export const money = (n, c = '₦') => (n > 0 ? `${c}${Number(n).toLocaleString('en-NG')}` : 'Price on request');
 export const dur = (m) => {
-  const h = Math.floor(m / 60), r = m % 60;
-  return [h && `${h} hr`, r && `${r} min`].filter(Boolean).join(' ');
+  const num = parseInt(m, 10);
+  if (isNaN(num) || num <= 0) return '';
+  const h = Math.floor(num / 60);
+  const r = num % 60;
+  if (h === 0) return `${r} min${r !== 1 ? 's' : ''}`;
+  if (r === 0) return `${h} hr${h !== 1 ? 's' : ''}`;
+  return `${h} hr${h !== 1 ? 's' : ''} ${r} min${r !== 1 ? 's' : ''}`;
 };
 export const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 export const fmtTime = (t) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };

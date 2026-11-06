@@ -105,7 +105,7 @@ export default function Book() {
           <dl className="summary">
             <div><dt>Service</dt><dd>{done.serviceName}</dd></div>
             <div><dt>When</dt><dd>{fmtDate(done.date)}, {fmtTime(done.time)}</dd></div>
-            <div><dt>Price</dt><dd>{done.price > 0 ? money(done.finalPrice, s.currency) : 'Confirmed on arrival'}</dd></div>
+            <div><dt>Price</dt><dd>Price on request</dd></div>
           </dl>
           <div className="cta-row center">
             {wa && <a className="btn" href={wa} target="_blank" rel="noreferrer">Message on WhatsApp</a>}
@@ -126,7 +126,7 @@ export default function Book() {
             <div className="svc-grid">
               {site.services.map((v) => (
                 <button key={v.id} className={`svc-card ${svc?.id === v.id ? 'on' : ''}`} onClick={() => { setSvc(v); setStep(1); }}>
-                  <h3>{v.name}</h3><p>{v.description}</p><span className="meta">{dur(v.duration)}<b>{money(v.price, s.currency)}</b></span>
+                  <h3>{v.name}</h3><p>{v.description}</p><span className="meta">{dur(v.duration)}<b>Price on request</b></span>
                 </button>
               ))}
             </div>
@@ -200,7 +200,7 @@ export default function Book() {
                   <div><dt>Service</dt><dd>{svc.name}</dd></div>
                   <div><dt>When</dt><dd>{fmtDate(date)}, {fmtTime(time)}</dd></div>
                   <div><dt>Duration</dt><dd>{dur(svc.duration)}</dd></div>
-                  <div><dt>Price</dt><dd>{money(svc.price, s.currency)}</dd></div>
+                  <div><dt>Price</dt><dd>Price on request</dd></div>
                 </dl>
                 {user ? (
                   <button className="btn" disabled={busy}>{busy ? 'Booking…' : 'Confirm booking'}</button>

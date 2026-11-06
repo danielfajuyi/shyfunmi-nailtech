@@ -85,7 +85,7 @@ export default function Layout() {
             <h4>Follow</h4>
             {s.instagram && <a href={`https://www.instagram.com/${s.instagram}`} target="_blank" rel="noreferrer">Instagram</a>}
             {s.tiktok && <a href={`https://www.tiktok.com/@${s.tiktok}`} target="_blank" rel="noreferrer">TikTok</a>}
-            {s.whatsapp && <a href={`https://wa.me/${s.whatsapp}`} target="_blank" rel="noreferrer">WhatsApp</a>}
+            <a href={`https://wa.me/${(s.whatsapp || '2349159814635').replace(/\D/g, '')}`} target="_blank" rel="noreferrer">Connect on WhatsApp</a>
             <a href="https://www.facebook.com/Shyfunmi.nails" target="_blank" rel="noreferrer">Facebook</a>
           </div>
           <div>
