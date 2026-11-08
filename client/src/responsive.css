@@ -91,7 +91,7 @@ img, video, svg, canvas, iframe, table { max-width: 100%; }
 .container, .abody, .amain, .admin { max-width: 100%; }
 /* decorative layers can never create sideways scroll */
 .hx-hero, .hx-sec, .hx-rail, .ph, .auth-page, .admin-login-wrap, .footer, .foot-mark, .hero-art, .marquee { overflow-x: clip; max-width: 100vw; }
-@media (pointer: coarse) { .fx-cursor { display: none !important; } }
+.fx-cursor { max-width: 0; max-height: 0; }
 
 /* =====================================================================
    Forms: stop date / time inputs and grids from overflowing (walk-in form etc.)

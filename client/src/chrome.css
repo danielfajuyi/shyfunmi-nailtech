@@ -1,0 +1,116 @@
+/* =====================================================================
+   Site chrome: floating glass navigation, full-screen mobile menu, footer
+   ===================================================================== */
+
+/* ---------- Navigation ---------- */
+.nav { position: sticky; top: 0; z-index: 30; padding: 12px clamp(10px, 2.4vw, 24px) 0; background: none; border: 0; pointer-events: none; }
+.nav-shell {
+  pointer-events: auto; max-width: 1180px; margin-inline: auto; height: 64px; padding: 0 10px 0 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-radius: 999px; border: 1px solid transparent;
+  transition: background 0.35s, border-color 0.35s, box-shadow 0.35s, max-width 0.5s var(--ease), height 0.35s var(--ease);
+}
+.nav.scrolled .nav-shell {
+  max-width: 1080px; height: 58px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-color: var(--line); box-shadow: 0 14px 40px -20px rgba(42, 22, 38, 0.4);
+}
+.nav .logo { flex: none; min-width: 0; }
+.nav .logo span { white-space: nowrap; }
+
+.links { display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; }
+.links a { position: relative; padding: 8px 16px; border-radius: 999px; color: var(--mute); font: 500 0.92rem var(--body); text-decoration: none; transition: color 0.2s, background 0.25s; }
+.links a:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.links a.active { color: var(--ink); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+.nav-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.nav-account { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 999px; color: var(--mute); font: 500 0.9rem var(--body); text-decoration: none; transition: color 0.2s, background 0.2s; }
+.nav-account:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.nav-book { padding: 10px 18px; }
+.nav-book svg { transition: transform 0.3s var(--ease); }
+.nav-book:hover svg { transform: translateX(3px); }
+.nav-theme { border-color: transparent; }
+.nav-theme:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+
+.burger { display: none; position: relative; flex: none; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.burger i { position: absolute; left: 12px; right: 12px; height: 1.6px; border-radius: 2px; background: var(--ink); transition: transform 0.3s var(--ease); }
+.burger i:nth-child(1) { top: 14px; }
+.burger i:nth-child(2) { top: 20px; right: 18px; }
+.burger i:nth-child(3) { top: 26px; }
+.burger:hover i:nth-child(2) { right: 12px; }
+
+@media (max-width: 1180px) { .nav-account span { display: none; } .nav-account { padding: 9px; } }
+@media (max-width: 1020px) {
+  .links, .nav-account, .nav-book, .nav-theme { display: none; }
+  .burger { display: block; }
+  .nav { padding-top: 8px; }
+  .nav-shell { height: 56px; padding: 0 7px 0 16px; }
+  .nav.scrolled .nav-shell { height: 54px; max-width: 100%; }
+}
+
+/* ---------- Full-screen mobile menu ---------- */
+.mnav { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); padding: calc(10px + env(safe-area-inset-top)) clamp(18px, 5vw, 36px) calc(22px + env(safe-area-inset-bottom)); }
+.mnav::before { content: ''; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(60% 40% at 90% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%), radial-gradient(50% 35% at 0% 100%, color-mix(in srgb, var(--blush) 80%, transparent), transparent 70%); }
+.mnav > * { position: relative; }
+.mnav-head { display: flex; align-items: center; justify-content: space-between; min-height: 56px; }
+.mnav-links { display: grid; margin: 14px 0 18px; }
+.mnav-links a { display: flex; align-items: center; gap: 14px; padding: 15px 2px; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; font: 300 clamp(1.7rem, 7.4vw, 2.4rem) / 1.1 var(--display); letter-spacing: -0.035em; animation: mnavIn 0.55s var(--ease) both; animation-delay: calc(var(--i, 0) * 55ms + 70ms); }
+.mnav-links a .n { flex: none; width: 24px; color: var(--accent); font: 500 0.72rem var(--body); letter-spacing: 0.04em; }
+.mnav-links a svg { margin-left: auto; opacity: 0.35; transition: transform 0.3s var(--ease), opacity 0.2s; }
+.mnav-links a:hover svg, .mnav-links a.active svg { opacity: 1; transform: translateX(4px); }
+.mnav-links a.active { color: var(--accent); }
+.mnav-foot { margin-top: auto; display: grid; gap: 10px; padding-top: 10px; animation: mnavIn 0.55s var(--ease) both; animation-delay: calc(var(--i, 5) * 55ms + 70ms); }
+.mnav-foot .btn { width: 100%; padding-block: 15px; }
+.mnav-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.mnav-addr { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 0.84rem; }
+@keyframes mnavIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Social buttons (menu + footer) ---------- */
+.socials { display: flex; flex-wrap: wrap; gap: 10px; }
+.soc { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: inherit; text-decoration: none; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); transition: background 0.25s, transform 0.3s var(--ease), border-color 0.25s; }
+.soc:hover { background: color-mix(in srgb, currentColor 12%, transparent); border-color: color-mix(in srgb, currentColor 45%, transparent); transform: translateY(-3px); }
+
+/* ---------- Footer ---------- */
+.footer { position: relative; margin-top: 64px; padding: clamp(36px, 5vw, 64px) 0 0; background: var(--deep); color: var(--on-deep); overflow-x: clip; }
+.footer a { color: inherit; }
+
+.foot-cta { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: clamp(36px, 5vw, 60px); padding: clamp(24px, 4vw, 46px); border-radius: 28px; color: #fff; background: linear-gradient(120deg, #8E3B6A 0%, #5C2547 55%, #3A1630 100%); box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.55); }
+.foot-cta::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(60% 120% at 92% -10%, rgba(255, 190, 225, 0.38), transparent 60%), radial-gradient(40% 80% at 0% 110%, rgba(255, 255, 255, 0.1), transparent 70%); }
+.foot-cta > * { position: relative; min-width: 0; }
+.foot-cta h2 { color: #fff; font: 300 clamp(1.7rem, 3.8vw, 2.6rem) / 1.08 var(--display); letter-spacing: -0.04em; }
+.foot-cta p { margin: 10px 0 0; max-width: 44ch; color: rgba(255, 255, 255, 0.78); }
+.foot-cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.footer .btn.light { background: #fff; color: #3A1630; border-color: #fff; }
+.footer .btn.ghost-light { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.42); }
+.footer .btn.ghost-light:hover { background: rgba(255, 255, 255, 0.12); }
+@media (max-width: 640px) { .foot-cta { border-radius: 22px; } .foot-cta-actions { width: 100%; } .foot-cta-actions .btn { flex: 1 1 100%; } }
+
+.foot-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr)); gap: clamp(28px, 4vw, 60px); }
+.foot-brand .fb-logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; font: 400 1.5rem var(--display); letter-spacing: -0.03em; }
+.foot-brand p { margin: 12px 0 0; max-width: 34ch; opacity: 0.72; }
+.foot-status { display: inline-flex; align-items: center; gap: 9px; margin: 18px 0 20px; padding: 7px 14px; border-radius: 999px; font-size: 0.82rem; border: 1px solid color-mix(in srgb, var(--on-deep) 20%, transparent); }
+.foot-status i { width: 8px; height: 8px; border-radius: 50%; background: #E0958C; }
+.foot-status.is-open i { background: #3FD08A; box-shadow: 0 0 0 4px rgba(63, 208, 138, 0.22); animation: statusPulse 2.4s ease-in-out infinite; }
+@keyframes statusPulse { 50% { box-shadow: 0 0 0 7px rgba(63, 208, 138, 0); } }
+
+.foot-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.foot-col h4 { margin-bottom: 14px; font: 600 0.82rem var(--body); letter-spacing: 0.02em; opacity: 0.55; }
+.foot-col a, .foot-col .linklike { display: inline-flex; align-items: flex-start; gap: 9px; max-width: 100%; margin: 0; padding: 6px 0; border: 0; background: none; color: inherit; font: 400 0.95rem/1.45 var(--body); text-align: left; text-decoration: none; opacity: 0.78; cursor: pointer; transition: opacity 0.2s, transform 0.3s var(--ease); }
+.foot-col a svg, .foot-col .linklike svg { flex: none; margin-top: 3px; opacity: 0.8; }
+.foot-col a span { min-width: 0; overflow-wrap: anywhere; }
+.foot-col a:hover, .foot-col .linklike:hover { opacity: 1; transform: translateX(3px); }
+
+@media (max-width: 900px) {
+  .foot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .foot-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) { .foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 20px; } .foot-col:last-child { grid-column: 1 / -1; } }
+
+.foot-mark { margin-top: clamp(20px, 3vw, 36px); }
+.fine { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 0; padding: 20px 0 calc(22px + env(safe-area-inset-bottom)); border-top: 1px solid color-mix(in srgb, var(--on-deep) 16%, transparent); font-size: 0.84rem; opacity: 1; }
+.fine > span:first-child { opacity: 0.62; }
+.fine-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.fine-right a { opacity: 0.55; text-decoration: none; } .fine-right a:hover { opacity: 1; }
+.to-top { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--on-deep) 24%, transparent); background: none; color: inherit; font: 500 0.82rem var(--body); transition: background 0.2s, transform 0.3s var(--ease); }
+.to-top:hover { background: color-mix(in srgb, var(--on-deep) 10%, transparent); transform: translateY(-2px); }

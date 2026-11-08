@@ -6,6 +6,7 @@ import './styles.css';
 import './fx.css';
 import './responsive.css';
 import './admin.css';
+import './chrome.css';
 import { installViewportGuard } from './viewportGuard.js';
 
 installViewportGuard();
