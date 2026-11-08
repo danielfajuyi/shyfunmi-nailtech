@@ -109,7 +109,7 @@ export default function Book() {
           </dl>
           <div className="cta-row center">
             {wa && <a className="btn" href={wa} target="_blank" rel="noreferrer">Message on WhatsApp</a>}
-            <Link className="btn ghost" to={user ? '/account' : '/register'}>{user ? 'View my bookings' : 'Create account to track it'}</Link>
+            <Link className="btn ghost" to={user ? '/account/bookings' : '/register'}>{user ? 'View my bookings' : 'Create account to track it'}</Link>
           </div>
         </div>
       </Page>

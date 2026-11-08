@@ -32,9 +32,10 @@ function Shell() {
         <Route path="register" element={<Auth mode="register" />} />
         <Route path="forgot" element={<Forgot />} />
         <Route path="reset" element={<Reset />} />
-        <Route path="account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      <Route path="account" element={<Account />} />
+      <Route path="account/:tab" element={<Account />} />
       <Route path="admin/login" element={<AdminLogin />} />
       <Route path="admin" element={<Admin />} />
       <Route path="admin/:tab" element={<Admin />} />

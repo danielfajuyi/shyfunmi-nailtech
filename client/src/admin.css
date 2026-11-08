@@ -369,3 +369,42 @@ body.drawer-open { overflow: hidden; }
 .hours-times input[type='time'] { padding-inline: 10px 6px; font-size: 15px !important; letter-spacing: -0.01em; }
 .hours-times input[type='time']::-webkit-calendar-picker-indicator { margin: 0 0 0 2px; padding: 0; width: 16px; }
 @media (max-width: 640px) { .settings .card { padding: 14px; } .hours-row { padding: 10px; } }
+
+/* ---------- Client dashboard pieces ---------- */
+.side-cta { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin: 2px 0 6px; padding: 10px 14px; border-radius: 12px; background: var(--sb-accent); color: #2A1626; font: 600 0.92rem var(--body); text-decoration: none; transition: transform 0.25s var(--ease), filter 0.2s; }
+.side-cta:hover { transform: translateY(-1px); filter: brightness(1.06); }
+img.avatar-sm { object-fit: cover; background: var(--sb-hover); }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.stat-text { font: 300 1.45rem var(--display); letter-spacing: -0.03em; padding-top: 6px; }
+.admin .loyalty-card { border-radius: 20px; padding: clamp(18px, 3vw, 26px); min-width: 0; }
+.admin .stats .stat { min-width: 0; }
+
+.bitem.bk { flex-direction: column; flex-wrap: nowrap; gap: 14px; }
+.bk-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bk-main { min-width: 0; overflow-wrap: anywhere; }
+.bk-main h3 { font-size: 1.1rem; }
+.resched { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.resched-title { margin: 0; font-weight: 600; font-size: 0.9rem; }
+.resched .field { max-width: 320px; }
+.resched .slots { margin: 4px 0; }
+.review-form { flex-basis: auto; }
+.bitem.bk .review-form { padding-top: 14px; }
+
+.admin .profile-hero { border-radius: 20px; padding: clamp(16px, 3vw, 26px); gap: 18px; }
+.admin .avatar-wrap { width: 92px; height: 92px; border: 3px solid var(--surface); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+.admin .avatar-edit { display: flex; align-items: center; justify-content: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: 0.7rem; padding: 6px 0 8px; }
+.ph-txt { min-width: 0; flex: 1 1 200px; }
+.ph-txt h2 { font: 400 clamp(1.3rem, 3vw, 1.7rem) / 1.15 var(--display); letter-spacing: -0.03em; margin: 0 0 6px; overflow-wrap: anywhere; }
+.ph-txt p { margin: 0 0 2px; overflow-wrap: anywhere; }
+.admin .profile-stat { border-radius: 18px; }
+@media (max-width: 640px) { .admin .profile-hero { flex-direction: column; text-align: center; align-items: center; } }
+
+/* fixed-size elements must never be squeezed by the global min-width:0 */
+.admin .stamp, .admin .stamps > *, .admin .avatar-sm, .admin .avatar-wrap, .admin .icon-btn, .admin .stat-ico, .admin .panel-ico { min-width: auto; flex: none; }
+.admin .stamps { flex-wrap: wrap; }
+.agrid > .loyalty-card { align-self: start; }
+.stat-text { line-height: 1.3; padding-top: 4px; }
+
+.admin .pill { white-space: nowrap; flex: none; }
+.bitem.bk > div:first-child { flex: none; }
+.bitem.bk .bk-top { width: 100%; }
