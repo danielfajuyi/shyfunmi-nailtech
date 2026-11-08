@@ -5,6 +5,10 @@ import App from './App.jsx';
 import './styles.css';
 import './fx.css';
 import './responsive.css';
+import './admin.css';
+import { installViewportGuard } from './viewportGuard.js';
+
+installViewportGuard();
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -21,3 +21,6 @@ export const waClient = (phone, msg) => {
   const n = String(phone).replace(/\D/g, '').replace(/^0/, '234');
   return `https://wa.me/${n}?text=${encodeURIComponent(msg)}`;
 };
+
+/* A gallery item is a video when its URL points at a video file or a Cloudinary video asset. Shared by the public gallery and the admin media library so both always agree. */
+export const isVideo = (url = '') => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(url) || url.includes('/video/') || url.includes('video/upload/');

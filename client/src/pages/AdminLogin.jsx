@@ -132,8 +132,7 @@ export default function AdminLogin() {
           <div className="admin-nav-links">
             <Link to="/">← Back to salon website</Link>
             <span className="dot-sep">·</span>
-            <Link to="/forgot">Forgot password</Link>
-            <span className="dot-sep">·</span>
+
             <Link to="/login">Client sign in</Link>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { toast } from '../components/Toast.jsx';
 import { useTheme } from '../components/Layout.jsx';
@@ -6,24 +6,52 @@ import Logo from '../components/Logo.jsx';
 import Modal from '../components/Modal.jsx';
 import FxLayer from '../components/FxLayer.jsx';
 import { CountUp } from '../components/motion.jsx';
+import {
+  MenuIcon, CloseIcon, DashboardIcon, CalendarIcon, ClipboardIcon, SparklesIcon, ImageIcon, UsersIcon,
+  GraduationCapIcon, StarIcon, MessageIcon, SettingsIcon, SunIcon, MoonIcon, LogOutIcon, GlobeIcon,
+  PlusIcon, ChevronLeftIcon, ChevronRightIcon, DownloadIcon, SaveIcon, TrashIcon, MailIcon, WhatsAppIcon,
+  ArrowRightIcon, SearchIcon, ClockIcon,
+} from '../components/Icons.jsx';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { useLoad, useTitle } from '../hooks.js';
 import { fmtDate, fmtTime, money, waClient, iso } from '../utils.js';
 import { Gallery, Services, Settings } from './AdminManage.jsx';
 
-const TABS = [
-  ['overview', 'Overview'],
-  ['calendar', 'Calendar'],
-  ['bookings', 'Bookings'],
-  ['services', 'Services'],
-  ['gallery', 'Gallery'],
-  ['clients', 'Clients'],
-  ['training', 'Training'],
-  ['reviews', 'Reviews'],
-  ['messages', 'Messages'],
-  ['settings', 'Settings'],
+/* [key, label, icon, badge key from /api/admin/stats] grouped for the sidebar */
+const NAV = [
+  ['Workspace', [
+    ['overview', 'Overview', DashboardIcon],
+    ['calendar', 'Calendar', CalendarIcon],
+    ['bookings', 'Bookings', ClipboardIcon, 'pending'],
+  ]],
+  ['Manage', [
+    ['services', 'Services', SparklesIcon],
+    ['gallery', 'Gallery', ImageIcon],
+    ['clients', 'Clients', UsersIcon],
+    ['training', 'Training', GraduationCapIcon, 'newEnrollments'],
+  ]],
+  ['Engage', [
+    ['reviews', 'Reviews', StarIcon, 'pendingReviews'],
+    ['messages', 'Messages', MessageIcon, 'unreadMessages'],
+  ]],
+  ['System', [
+    ['settings', 'Settings', SettingsIcon],
+  ]],
 ];
+const TABS = NAV.flatMap(([, items]) => items);
+const BLURB = {
+  overview: 'Today at a glance',
+  calendar: 'Appointments by day',
+  bookings: 'Every booking, with status and actions',
+  services: 'Menu, prices and durations',
+  gallery: 'Photos and videos on your public gallery',
+  clients: 'People who have booked with you',
+  training: 'Nail training enquiries',
+  reviews: 'Approve what shows on the site',
+  messages: 'Contact form enquiries',
+  settings: 'Business details, hours and loyalty',
+};
 
 export default function Admin() {
   useTitle('Admin Dashboard');
@@ -31,6 +59,30 @@ export default function Admin() {
   const { tab = 'overview' } = useParams();
   const [dark, toggle] = useTheme();
   const [menu, setMenu] = useState(false);
+  const [counts, setCounts] = useState({});
+  const isAdmin = user && user.role === 'admin';
+
+  // sidebar badges (pending bookings, unread messages…) refresh whenever you change page
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.get('/api/admin/stats').then(setCounts).catch(() => {});
+  }, [isAdmin, tab]);
+
+  // close the drawer on Escape, and lock page scroll behind it
+  useEffect(() => {
+    if (!menu) return undefined;
+    const esc = (e) => { if (e.key === 'Escape') setMenu(false); };
+    window.addEventListener('keydown', esc);
+    document.body.classList.add('drawer-open');
+    return () => { window.removeEventListener('keydown', esc); document.body.classList.remove('drawer-open'); };
+  }, [menu]);
+  // switching to desktop width while the drawer is open must not leave the page locked
+  useEffect(() => {
+    const mq = matchMedia('(min-width: 861px)');
+    const f = () => { if (mq.matches) setMenu(false); };
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
 
   if (user === undefined) return <div className="boot"><span /></div>;
   if (!user) return <Navigate to="/admin/login" replace />;
@@ -49,30 +101,64 @@ export default function Admin() {
     messages: Messages,
     settings: Settings,
   }[tab] || Overview;
+  const current = TABS.find(([k]) => k === tab) || TABS[0];
+  const name = (user.name || 'Admin').trim();
+  const initials = name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const close = () => setMenu(false);
 
   return (
-    <div className="admin">
+    <div className={`admin ${menu ? 'drawer-on' : ''}`}>
       <FxLayer />
-      <aside className={`side ${menu ? 'open' : ''}`}>
-        <Link to="/" className="logo"><Logo size={28} /> <span>Shyfunmi</span></Link>
-        <nav>
-          {TABS.map(([k, l]) => (
-            <Link key={k} to={`/admin/${k}`} className={tab === k ? 'on' : ''} onClick={() => setMenu(false)}>
-              {l}
-            </Link>
+      <div className="side-scrim" onClick={close} aria-hidden="true" />
+      <aside className={`side ${menu ? 'open' : ''}`} aria-label="Admin navigation">
+        <div className="side-head">
+          <Link to="/" className="side-brand" onClick={close}>
+            <span className="side-mark"><Logo size={26} light /></span>
+            <span className="side-name"><b>{site.settings.businessName || 'Shyfunmi Nails'}</b><small>Admin</small></span>
+          </Link>
+          <button type="button" className="side-close" onClick={close} aria-label="Close menu"><CloseIcon size={18} /></button>
+        </div>
+
+        <nav className="side-nav" aria-label="Sections">
+          {NAV.map(([group, items]) => (
+            <div className="nav-group" key={group}>
+              <span className="nav-label">{group}</span>
+              {items.map(([k, l, Icon, badge]) => (
+                <Link key={k} to={`/admin/${k}`} className={tab === k ? 'on' : ''} aria-current={tab === k ? 'page' : undefined} onClick={close}>
+                  <Icon size={18} />
+                  <span>{l}</span>
+                  {badge && counts[badge] > 0 && <em className="nav-badge">{counts[badge] > 99 ? '99+' : counts[badge]}</em>}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
+
         <div className="side-foot">
-          <button className="linklike" onClick={toggle}>{dark ? 'Light mode' : 'Dark mode'}</button>
-          <Link to="/">View website</Link>
-          <button className="linklike" onClick={logout}>Sign out</button>
+          <div className="side-user">
+            <span className="avatar-sm" aria-hidden="true">{initials || 'A'}</span>
+            <span className="side-user-txt"><b>{name}</b><small>{user.email}</small></span>
+          </div>
+          <div className="side-actions">
+            <Link to="/" className="side-act" onClick={close}><GlobeIcon size={17} /> <span>View website</span></Link>
+            <button type="button" className="side-act" onClick={toggle}>{dark ? <SunIcon size={17} /> : <MoonIcon size={17} />} <span>{dark ? 'Light mode' : 'Dark mode'}</span></button>
+            <button type="button" className="side-act out" onClick={logout}><LogOutIcon size={17} /> <span>Sign out</span></button>
+          </div>
         </div>
       </aside>
+
       <div className="amain" data-lenis-prevent>
-        <div className="atop">
-          <button className="icon-btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu">☰</button>
-          <h1>{TABS.find(([k]) => k === tab)?.[1] || 'Overview'}</h1>
-        </div>
+        <header className="atop">
+          <button type="button" className="icon-btn menu-btn" onClick={() => setMenu(true)} aria-label="Open menu" aria-expanded={menu}><MenuIcon size={20} /></button>
+          <div className="atop-title">
+            <h1>{current[1]}</h1>
+            <p>{BLURB[current[0]]}</p>
+          </div>
+          <div className="atop-actions">
+            <button type="button" className="icon-btn" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}>{dark ? <SunIcon size={18} /> : <MoonIcon size={18} />}</button>
+            <Link to="/" className="btn ghost sm site-link"><GlobeIcon size={15} /> <span>View site</span></Link>
+          </div>
+        </header>
         <div className="abody"><View cur={cur} /></div>
       </div>
     </div>
@@ -83,22 +169,35 @@ function Loading({ d, e }) { return e ? <p className="err">{e}</p> : !d ? <p cla
 
 function Overview() {
   const { data: d, error } = useLoad('/api/admin/stats');
+  const { user } = useApp();
   if (!d) return <Loading d={d} e={error} />;
+  const hr = new Date().getHours();
+  const hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const first = (user?.name || '').trim().split(/\s+/)[0];
 
   return (
     <>
+      <div className="welcome">
+        <div>
+          <h2>{hello}{first ? `, ${first}` : ''}</h2>
+          <p className="muted">{d.todayBookings ? `You have ${d.todayBookings} appointment${d.todayBookings !== 1 ? 's' : ''} today.` : 'No appointments today.'}</p>
+        </div>
+        <Link to="/admin/calendar" className="btn sm"><CalendarIcon size={16} /> Open calendar</Link>
+      </div>
+
       <div className="stats">
         {[
-          ['Today', d.todayBookings, '/admin/calendar'],
-          ['Pending', d.pending, '/admin/bookings'],
-          ['Upcoming', d.upcoming, '/admin/calendar'],
-          ['Completed visits', d.completed, null],
-          ['Clients', d.clients, '/admin/clients'],
-        ].map(([l, v, to]) => (
+          ['Today', d.todayBookings, '/admin/calendar', CalendarIcon],
+          ['Pending', d.pending, '/admin/bookings', ClipboardIcon],
+          ['Upcoming', d.upcoming, '/admin/calendar', ClockIcon],
+          ['Completed visits', d.completed, null, StarIcon],
+          ['Clients', d.clients, '/admin/clients', UsersIcon],
+        ].map(([l, v, to, Ico]) => (
           <div className="stat" key={l}>
+            <span className="stat-ico"><Ico size={18} /></span>
             <small>{l}</small>
             <b><CountUp to={v} /></b>
-            {to && <Link to={to}>View</Link>}
+            {to ? <Link to={to}>View <ArrowRightIcon size={13} /></Link> : <span className="stat-gap" />}
           </div>
         ))}
       </div>
@@ -114,30 +213,25 @@ function Overview() {
 
       <div className="agrid">
         <div className="card">
-          <h3>Popular services</h3>
+          <div className="card-head"><h3>Next appointments</h3><Link to="/admin/calendar" className="card-link">Calendar <ArrowRightIcon size={14} /></Link></div>
+          {d.next.length ? d.next.map((b) => (
+            <div className="line appt" key={b.id}>
+              <span className="appt-who"><b>{b.name}</b><small className="muted">{b.serviceName}</small></span>
+              <span className="appt-when">{fmtDate(b.date)}, {fmtTime(b.time)} <em className={`pill ${b.status}`}>{b.status}</em></span>
+            </div>
+          )) : <p className="muted">Nothing upcoming.</p>}
+        </div>
+        <div className="card">
+          <div className="card-head"><h3>Popular services</h3></div>
           {d.top.length ? d.top.map((t) => <div className="line" key={t.name}><span>{t.name}</span><b>{t.count}</b></div>) : <p className="muted">No bookings yet.</p>}
           <div className="line"><span>New training enquiries</span><b>{d.newEnrollments}</b></div>
           <div className="line"><span>Reviews waiting</span><b>{d.pendingReviews}</b></div>
           <div className="line"><span>Unread messages</span><b>{d.unreadMessages}</b></div>
         </div>
       </div>
-
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Next appointments</h3>
-          <Link to="/admin/calendar" className="linklike" style={{ fontSize: '0.88rem' }}>Open Calendar →</Link>
-        </div>
-        {d.next.length ? d.next.map((b) => (
-          <div className="line" key={b.id}>
-            <span><b>{b.name}</b>, {b.serviceName}</span>
-            <span>{fmtDate(b.date)}, {fmtTime(b.time)} <em className={`pill ${b.status}`}>{b.status}</em></span>
-          </div>
-        )) : <p className="muted">Nothing upcoming.</p>}
-      </div>
     </>
   );
 }
-
 /* ---------- Calendar View ---------- */
 function CalendarView({ cur }) {
   const { data: bookings, reload, error } = useLoad('/api/admin/bookings?status=all');
@@ -176,13 +270,13 @@ function CalendarView({ cur }) {
 
   return (
     <>
-      <div className="toolbar" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn ghost sm" onClick={() => setWeekOffset((w) => w - 1)}>‹ Previous week</button>
-          <button className="btn ghost sm" onClick={() => { setWeekOffset(0); setSelectedDate(iso(new Date())); }}>Today</button>
-          <button className="btn ghost sm" onClick={() => setWeekOffset((w) => w + 1)}>Next week ›</button>
+      <div className="cal-toolbar">
+        <div className="cal-nav">
+          <button type="button" className="icon-btn" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Previous week"><ChevronLeftIcon size={18} /></button>
+          <button type="button" className="btn ghost sm" onClick={() => { setWeekOffset(0); setSelectedDate(iso(new Date())); }}>Today</button>
+          <button type="button" className="icon-btn" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Next week"><ChevronRightIcon size={18} /></button>
         </div>
-        <button className="btn sm" onClick={() => setShowWalkIn(true)}>+ Add walk-in</button>
+        <button type="button" className="btn sm" onClick={() => setShowWalkIn(true)}><PlusIcon size={16} /> Add walk-in</button>
       </div>
 
       <Loading d={bookings} e={error} />
@@ -205,15 +299,15 @@ function CalendarView({ cur }) {
 
       {/* Day Schedule Panel */}
       <div className="card calendar-schedule-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>Schedule for {fmtDate(selectedDate)}</h3>
-          <span className="muted" style={{ fontSize: '0.88rem' }}>{selectedDayBookings.length} appointment{selectedDayBookings.length !== 1 ? 's' : ''}</span>
+        <div className="card-head">
+          <h3>Schedule for {fmtDate(selectedDate)}</h3>
+          <span className="muted count-note">{selectedDayBookings.length} appointment{selectedDayBookings.length !== 1 ? 's' : ''}</span>
         </div>
 
         {selectedDayBookings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '36px 0' }}>
             <p className="muted">No appointments scheduled for this date.</p>
-            <button className="btn ghost sm" onClick={() => setShowWalkIn(true)}>+ Book appointment for this day</button>
+            <button type="button" className="btn ghost sm" onClick={() => setShowWalkIn(true)}><PlusIcon size={15} /> Book appointment for this day</button>
           </div>
         ) : (
           <div className="timeline-list">
@@ -223,14 +317,14 @@ function CalendarView({ cur }) {
                   <b>{fmtTime(b.time)}</b>
                 </div>
                 <div className="timeline-content card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-                    <div>
-                      <h4 style={{ margin: '0 0 4px', fontSize: '1.05rem' }}>{b.name}</h4>
-                      <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>{b.serviceName} · {b.shape}</p>
+                  <div className="tl-top">
+                    <div className="tl-who">
+                      <h4>{b.name}</h4>
+                      <p className="muted">{b.serviceName} · {b.shape}</p>
                     </div>
                     <span className={`pill ${b.status}`}>{b.status}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, fontSize: '0.85rem' }}>
+                  <div className="tl-bottom">
                     <span className="muted">{b.phone}</span>
                     <b>{b.price > 0 ? money(b.finalPrice, cur) : 'No price set'}</b>
                   </div>
@@ -252,9 +346,7 @@ function CalendarView({ cur }) {
       )}
 
       {/* Walk-in Modal */}
-      <Modal isOpen={showWalkIn} onClose={() => setShowWalkIn(false)} title="Add Walk-In / New Appointment" maxWidth={540}>
-        <WalkInForm defaultDate={selectedDate} done={() => { setShowWalkIn(false); reload(); }} />
-      </Modal>
+      <WalkInModal open={showWalkIn} onClose={() => setShowWalkIn(false)} defaultDate={selectedDate} done={() => { setShowWalkIn(false); reload(); }} />
     </>
   );
 }
@@ -283,12 +375,15 @@ function Bookings({ cur }) {
   return (
     <>
       <div className="toolbar">
-        <input placeholder="Search name, phone or service" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search bookings" />
+        <div className="search-box grow">
+          <SearchIcon size={16} />
+          <input placeholder="Search name, phone or service" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search bookings" />
+        </div>
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status">
           {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map((s) => <option key={s}>{s}</option>)}
         </select>
-        <button className="btn sm" onClick={() => setShowWalkIn(true)}>+ Add walk-in</button>
-        <button className="btn ghost sm" onClick={exportCSV}>Export CSV</button>
+        <button type="button" className="btn sm" onClick={() => setShowWalkIn(true)}><PlusIcon size={16} /> Add walk-in</button>
+        <button type="button" className="btn ghost sm" onClick={exportCSV}><DownloadIcon size={15} /> Export CSV</button>
       </div>
 
       <Loading d={data} e={error} />
@@ -317,9 +412,7 @@ function Bookings({ cur }) {
       )}
 
       {/* Walk-in Modal */}
-      <Modal isOpen={showWalkIn} onClose={() => setShowWalkIn(false)} title="Add Walk-In / New Appointment" maxWidth={540}>
-        <WalkInForm done={() => { setShowWalkIn(false); reload(); }} />
-      </Modal>
+      <WalkInModal open={showWalkIn} onClose={() => setShowWalkIn(false)} done={() => { setShowWalkIn(false); reload(); }} />
     </>
   );
 }
@@ -361,10 +454,10 @@ function BookingRow({ b, cur, reload, onOpenModal }) {
         >
           {['pending', 'confirmed', 'completed', 'cancelled'].map((s) => <option key={s}>{s}</option>)}
         </select>
-        <a className="btn ghost sm" href={waClient(b.phone, msg)} target="_blank" rel="noreferrer">WhatsApp</a>
-        {mailtoLink && <a className="btn ghost sm" href={mailtoLink}>Email</a>}
-        <button className="btn ghost sm" onClick={onOpenModal}>Manage modal</button>
-        <button className="btn ghost sm danger" onClick={remove}>Delete</button>
+        <a className="btn ghost sm" href={waClient(b.phone, msg)} target="_blank" rel="noreferrer"><WhatsAppIcon size={15} /> WhatsApp</a>
+        {mailtoLink && <a className="btn ghost sm" href={mailtoLink}><MailIcon size={15} /> Email</a>}
+        <button type="button" className="btn ghost sm" onClick={onOpenModal}>Manage</button>
+        <button type="button" className="btn ghost sm danger" onClick={remove}><TrashIcon size={15} /> Delete</button>
       </div>
     </div>
   );
@@ -416,24 +509,38 @@ function AppointmentModal({ booking, cur, onClose, onReload }) {
   const mailtoLink = booking.email ? `mailto:${booking.email}?subject=Your appointment at ${encodeURIComponent(site.settings.businessName)}&body=${encodeURIComponent(msg)}` : null;
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`Appointment: ${booking.name}`} maxWidth={580}>
-      <form onSubmit={saveChanges} className="modal-form">
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={booking.name}
+      subtitle="Appointment details"
+      maxWidth={600}
+      footer={(
+        <>
+          <button type="button" className="btn ghost sm danger" onClick={removeBooking}><TrashIcon size={15} /> Delete</button>
+          <span className="foot-spacer" />
+          <button type="button" className="btn ghost sm" onClick={onClose}>Close</button>
+          <button type="submit" form="appt-form" className="btn sm" disabled={busy}><SaveIcon size={15} /> {busy ? 'Saving…' : 'Save changes'}</button>
+        </>
+      )}
+    >
+      <form id="appt-form" onSubmit={saveChanges} className="modal-form">
         <div className="modal-client-meta">
-          <div>
+          <div className="mcm-txt">
             <strong>{booking.name}</strong>
-            <p className="muted" style={{ margin: 0, fontSize: '0.88rem' }}>{booking.phone} {booking.email && `· ${booking.email}`}</p>
+            <p className="muted"><PhoneIcon size={13} /> {booking.phone}{booking.email && ` · ${booking.email}`}</p>
           </div>
           <span className={`pill ${f.status}`}>{f.status}</span>
         </div>
 
         <div className="modal-service-details">
-          <div><span className="muted">Service:</span> <strong>{booking.serviceName}</strong></div>
-          <div><span className="muted">Shape:</span> <strong>{booking.shape}</strong></div>
-          {booking.color && <div><span className="muted">Color idea:</span> <strong>{booking.color}</strong></div>}
-          {booking.notes && <div><span className="muted">Client notes:</span> <em>"{booking.notes}"</em></div>}
+          <div><span className="muted">Service</span> <strong>{booking.serviceName}</strong></div>
+          <div><span className="muted">Shape</span> <strong>{booking.shape}</strong></div>
+          {booking.color && <div><span className="muted">Color idea</span> <strong>{booking.color}</strong></div>}
+          {booking.notes && <div><span className="muted">Client notes</span> <em>“{booking.notes}”</em></div>}
         </div>
 
-        <div className="grid-2" style={{ marginTop: 14 }}>
+        <div className="grid-2 keep-2">
           <div className="field">
             <label>Date</label>
             <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} required />
@@ -442,12 +549,9 @@ function AppointmentModal({ booking, cur, onClose, onReload }) {
             <label>Time</label>
             <input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} required />
           </div>
-        </div>
-
-        <div className="grid-2">
           <div className="field">
             <label>Price ({cur})</label>
-            <input type="number" min="0" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
+            <input type="number" inputMode="numeric" min="0" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} />
           </div>
           <div className="field">
             <label>Discount %</label>
@@ -465,7 +569,7 @@ function AppointmentModal({ booking, cur, onClose, onReload }) {
         </div>
 
         <div className="field">
-          <label>Private Administrative Note</label>
+          <label>Private note</label>
           <textarea
             rows="2"
             placeholder="Special client preferences, nail condition, etc."
@@ -474,26 +578,38 @@ function AppointmentModal({ booking, cur, onClose, onReload }) {
           />
         </div>
 
-        <div className="modal-actions-row">
-          <a className="btn ghost sm" href={waClient(booking.phone, msg)} target="_blank" rel="noreferrer">
-            WhatsApp
-          </a>
-          {mailtoLink && <a className="btn ghost sm" href={mailtoLink}>Email client</a>}
-          <button type="button" className="btn ghost sm danger" onClick={removeBooking}>
-            Delete
-          </button>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button type="button" className="btn ghost sm" onClick={onClose}>Close</button>
-            <button className="btn sm" disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</button>
-          </div>
+        <div className="contact-row">
+          <a className="btn ghost sm" href={waClient(booking.phone, msg)} target="_blank" rel="noreferrer"><WhatsAppIcon size={15} /> WhatsApp</a>
+          {mailtoLink && <a className="btn ghost sm" href={mailtoLink}><MailIcon size={15} /> Email client</a>}
         </div>
       </form>
     </Modal>
   );
 }
 
-/* ---------- Walk-In Form Component ---------- */
-function WalkInForm({ defaultDate, done }) {
+/* ---------- Walk-in modal + form ---------- */
+function WalkInModal({ open, onClose, defaultDate, done }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title="New appointment"
+      subtitle="Add a walk-in or book a client who called."
+      maxWidth={580}
+      footer={(
+        <>
+          <button type="button" className="btn ghost sm" onClick={onClose}>Cancel</button>
+          <button type="submit" form="walkin-form" className="btn sm" disabled={busy}><PlusIcon size={16} /> {busy ? 'Creating…' : 'Confirm booking'}</button>
+        </>
+      )}
+    >
+      <WalkInForm defaultDate={defaultDate} done={done} onBusy={setBusy} />
+    </Modal>
+  );
+}
+
+function WalkInForm({ defaultDate, done, onBusy }) {
   const { site } = useApp();
   const [f, setF] = useState({
     serviceId: site.services[0]?.id || '',
@@ -506,14 +622,13 @@ function WalkInForm({ defaultDate, done }) {
     color: '',
     notes: '',
   });
-  const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) return toast('Please enter client name.', 'err');
     if (!f.phone.trim()) return toast('Please enter client phone number.', 'err');
-    setBusy(true);
+    onBusy?.(true);
     try {
       await api.post('/api/admin/bookings', f);
       toast('Booking created successfully');
@@ -521,12 +636,12 @@ function WalkInForm({ defaultDate, done }) {
     } catch (x) {
       toast(x.message, 'err');
     } finally {
-      setBusy(false);
+      onBusy?.(false);
     }
   };
 
   return (
-    <form className="form" onSubmit={submit}>
+    <form id="walkin-form" className="form" onSubmit={submit}>
       <div className="field">
         <label>Service</label>
         <select value={f.serviceId} onChange={set('serviceId')}>
@@ -536,21 +651,21 @@ function WalkInForm({ defaultDate, done }) {
 
       <div className="grid-2">
         <div className="field">
-          <label>Client Name</label>
+          <label>Client name</label>
           <input value={f.name} onChange={set('name')} placeholder="Full name" required />
         </div>
         <div className="field">
-          <label>Phone Number</label>
-          <input value={f.phone} onChange={set('phone')} type="tel" placeholder="080..." required />
+          <label>Phone number</label>
+          <input value={f.phone} onChange={set('phone')} type="tel" inputMode="tel" placeholder="080…" required />
         </div>
       </div>
 
       <div className="field">
-        <label>Email (Optional)</label>
+        <label>Email <span className="muted opt">optional</span></label>
         <input value={f.email} onChange={set('email')} type="email" placeholder="client@example.com" />
       </div>
 
-      <div className="grid-2">
+      <div className="grid-2 keep-2">
         <div className="field">
           <label>Date</label>
           <input type="date" value={f.date} onChange={set('date')} required />
@@ -563,25 +678,21 @@ function WalkInForm({ defaultDate, done }) {
 
       <div className="grid-2">
         <div className="field">
-          <label>Nail Shape</label>
+          <label>Nail shape</label>
           <select value={f.shape} onChange={set('shape')}>
             {['Almond', 'Coffin', 'Square', 'Stiletto', 'Round', 'Not sure yet'].map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>Color Idea (Optional)</label>
-          <input value={f.color} onChange={set('color')} placeholder="e.g. Blush Pink, French tip" />
+          <label>Color idea <span className="muted opt">optional</span></label>
+          <input value={f.color} onChange={set('color')} placeholder="e.g. Blush pink, French tip" />
         </div>
       </div>
 
       <div className="field">
-        <label>Notes / Requests (Optional)</label>
+        <label>Notes / requests <span className="muted opt">optional</span></label>
         <textarea rows="2" value={f.notes} onChange={set('notes')} placeholder="Specific art, extensions, etc." />
       </div>
-
-      <button className="btn" disabled={busy} style={{ width: '100%', marginTop: 8 }}>
-        {busy ? 'Creating booking…' : 'Confirm Walk-In Booking'}
-      </button>
     </form>
   );
 }
@@ -605,12 +716,23 @@ function Clients() {
   return (
     <>
       <div className="toolbar">
-        <input placeholder="Search clients" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" />
-        <button className="btn ghost sm" onClick={exportCSV}>Export CSV</button>
+        <div className="search-box grow">
+          <SearchIcon size={16} />
+          <input placeholder="Search clients" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search clients" />
+        </div>
+        <button type="button" className="btn ghost sm" onClick={exportCSV}><DownloadIcon size={15} /> Export CSV</button>
       </div>
-      <div className="table-wrap"><table>
+      <div className="table-wrap stack-table"><table>
         <thead><tr><th>Name</th><th>Contact</th><th>Bookings</th><th>Completed visits</th><th>Joined</th></tr></thead>
-        <tbody>{list.map((c) => <tr key={c.id}><td>{c.name}</td><td>{c.email}<br /><span className="muted">{c.phone}</span></td><td>{c.bookings}</td><td>{c.visits}</td><td>{new Date(c.createdAt).toLocaleDateString('en-NG')}</td></tr>)}</tbody>
+        <tbody>{list.map((c) => (
+          <tr key={c.id}>
+            <td data-label="Name"><b>{c.name}</b></td>
+            <td data-label="Contact">{c.email}<br /><span className="muted">{c.phone}</span></td>
+            <td data-label="Bookings">{c.bookings}</td>
+            <td data-label="Completed">{c.visits}</td>
+            <td data-label="Joined">{new Date(c.createdAt).toLocaleDateString('en-NG')}</td>
+          </tr>
+        ))}</tbody>
       </table></div>
       {!list.length && <p className="muted">No clients yet.</p>}
     </>
@@ -631,9 +753,9 @@ function Training() {
           <div><h3>{e.name}</h3><p>{e.level}. {e.phone}{e.email && `, ${e.email}`}</p>{e.message && <p className="muted"><i>"{e.message}"</i></p>}<p className="muted">{new Date(e.createdAt).toLocaleDateString('en-NG')}</p></div>
           <div className="bact">
             <select className="pill sel" value={e.status} onChange={(ev) => set(e.id, ev.target.value)} aria-label="Status">{['new', 'contacted', 'enrolled', 'declined'].map((s) => <option key={s}>{s}</option>)}</select>
-            <a className="btn ghost sm" target="_blank" rel="noreferrer" href={waClient(e.phone, `Hello ${e.name}, thank you for your interest in nail training.`)}>WhatsApp</a>
-            {e.email && <a className="btn ghost sm" href={`mailto:${e.email}`}>Email</a>}
-            <button className="btn ghost sm danger" onClick={() => del(e.id)}>Delete</button>
+            <a className="btn ghost sm" target="_blank" rel="noreferrer" href={waClient(e.phone, `Hello ${e.name}, thank you for your interest in nail training.`)}><WhatsAppIcon size={15} /> WhatsApp</a>
+            {e.email && <a className="btn ghost sm" href={`mailto:${e.email}`}><MailIcon size={15} /> Email</a>}
+            <button type="button" className="btn ghost sm danger" onClick={() => del(e.id)}><TrashIcon size={15} /> Delete</button>
           </div>
         </div>
       ))}
@@ -657,7 +779,7 @@ function Reviews() {
           <div className="bact">
             <span className={`pill ${r.approved ? 'confirmed' : 'pending'}`}>{r.approved ? 'published' : 'waiting'}</span>
             <button className="btn ghost sm" onClick={() => approve(r, !r.approved)}>{r.approved ? 'Hide' : 'Publish'}</button>
-            <button className="btn ghost sm danger" onClick={() => del(r.id)}>Delete</button>
+            <button type="button" className="btn ghost sm danger" onClick={() => del(r.id)}><TrashIcon size={15} /> Delete</button>
           </div>
         </div>
       ))}
@@ -687,10 +809,10 @@ function Messages() {
             <p className="muted" style={{ fontSize: '0.82rem', marginTop: 6 }}>{new Date(m.createdAt).toLocaleString('en-NG')}</p>
           </div>
           <div className="bact">
-            {m.email && <a className="btn ghost sm" href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject || 'Your enquiry')}`}>Reply by email</a>}
-            {m.phone && <a className="btn ghost sm" href={waClient(m.phone, `Hello ${m.name}, thanks for getting in touch about "${m.subject || 'your enquiry'}".`)}>WhatsApp</a>}
-            <button className="btn ghost sm" onClick={() => markRead(m.id, !m.read)}>{m.read ? 'Mark unread' : 'Mark read'}</button>
-            <button className="btn ghost sm danger" onClick={() => del(m.id)}>Delete</button>
+            {m.email && <a className="btn ghost sm" href={`mailto:${m.email}?subject=Re: ${encodeURIComponent(m.subject || 'Your enquiry')}`}><MailIcon size={15} /> Reply</a>}
+            {m.phone && <a className="btn ghost sm" href={waClient(m.phone, `Hello ${m.name}, thanks for getting in touch about "${m.subject || 'your enquiry'}".`)}><WhatsAppIcon size={15} /> WhatsApp</a>}
+            <button type="button" className="btn ghost sm" onClick={() => markRead(m.id, !m.read)}>{m.read ? 'Mark unread' : 'Mark read'}</button>
+            <button type="button" className="btn ghost sm danger" onClick={() => del(m.id)}><TrashIcon size={15} /> Delete</button>
           </div>
         </div>
       ))}

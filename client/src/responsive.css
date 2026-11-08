@@ -39,16 +39,10 @@ html { overflow-x: hidden; }
 @media (max-width: 640px) { .foot-mark span { font-size: 13vw; } }
 
 /* ---------- Dashboards: stop grid children from forcing the page wider than the screen ---------- */
-.abody { grid-template-columns: minmax(0, 1fr); }
-.abody > *, .agrid > *, .settings > *, .split > *, .profile-layout > * { min-width: 0; }
-.settings { grid-template-columns: minmax(0, 1fr); }
-.hrow { grid-template-columns: 110px 80px minmax(0, 1fr) minmax(0, 1fr); }
-.hrow > * { min-width: 0; }
+.agrid > *, .split > *, .profile-layout > * { min-width: 0; }
 input, select, textarea { max-width: 100%; min-width: 0; }
 .toolbar input { min-width: min(200px, 100%); }
-@media (max-width: 560px) { .hrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .table-wrap, .calendar-week-strip, .days, .tabs { max-width: 100%; }
-@media (max-width: 420px) { .atop { padding-inline: 14px; gap: 10px; } .atop h1 { font-size: 1.3rem; } }
 
 /* ---------- Phone polish found in visual review ---------- */
 /* Gallery: two columns on every phone (was one huge column under 400px) */
@@ -80,3 +74,38 @@ input, select, textarea { max-width: 100%; min-width: 0; }
   .calendar-week-strip .cal-day-name { font-size: 0.6rem; letter-spacing: 0; }
   .calendar-week-strip .cal-count-badge { font-size: 0.6rem; padding: 1px 6px; }
 }
+
+/* =====================================================================
+   Permanent fit-to-screen guard (the "page comes back zoomed out" fix)
+   ---------------------------------------------------------------------
+   Mobile browsers zoom a page OUT to fit when anything is wider than the
+   screen, and a page restored from the back/forward cache can keep that
+   zoom. These rules make sure nothing can ever be wider than the viewport;
+   src/viewportGuard.js re-fits the page whenever it is shown again.
+   ===================================================================== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; width: 100% !important; max-width: 100% !important; overflow-x: hidden !important; overscroll-behavior-x: none; }
+body { width: 100% !important; max-width: 100% !important; min-width: 0 !important; overflow-x: hidden; overscroll-behavior-x: none; }
+@supports (overflow: clip) { body { overflow-x: clip; } #root { overflow-x: clip; } }
+#root { width: 100%; max-width: 100%; min-width: 0; }
+img, video, svg, canvas, iframe, table { max-width: 100%; }
+.container, .abody, .amain, .admin { max-width: 100%; }
+/* decorative layers can never create sideways scroll */
+.hx-hero, .hx-sec, .hx-rail, .ph, .auth-page, .admin-login-wrap, .footer, .foot-mark, .hero-art, .marquee { overflow-x: clip; max-width: 100vw; }
+.fx-cursor { max-width: 0; max-height: 0; }
+
+/* =====================================================================
+   Forms: stop date / time inputs and grids from overflowing (walk-in form etc.)
+   ===================================================================== */
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
+.form, .modal-form, .field, .grid-2 > *, .edit-grid > * { min-width: 0; }
+input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'] {
+  -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%; min-width: 0;
+  min-height: 48px; line-height: 1.2; text-align: left; background-clip: padding-box;
+}
+input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-date-and-time-value { text-align: left; min-width: 0; margin: 0; }
+input[type='date']::-webkit-datetime-edit, input[type='time']::-webkit-datetime-edit { padding: 0; }
+select { text-overflow: ellipsis; }
+textarea { resize: vertical; }
+/* iOS zooms the whole page when a field under 16px is focused, and often stays zoomed. 16px prevents it. */
+@media (max-width: 860px) { input, select, textarea { font-size: 16px !important; } }

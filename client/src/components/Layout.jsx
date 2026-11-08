@@ -5,6 +5,7 @@ import { useApp } from '../context.jsx';
 import Logo from './Logo.jsx';
 import FxLayer from './FxLayer.jsx';
 import { FootMark, ScrollProgress } from './motion.jsx';
+import { SunIcon, MoonIcon } from './Icons.jsx';
 
 const LINKS = [['/', 'Home'], ['/services', 'Services'], ['/gallery', 'Gallery'], ['/training', 'Training'], ['/contact', 'Contact']];
 
@@ -50,7 +51,7 @@ export default function Layout() {
             {LINKS.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
           </nav>
           <div className="nav-actions">
-            <button className="icon-btn" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}>{dark ? '☀' : '☾'}</button>
+            <button className="icon-btn" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}>{dark ? <SunIcon size={17} /> : <MoonIcon size={17} />}</button>
             <Link className="link-quiet" to={account}>{accountLabel}</Link>
             <Link className="btn sm" to="/book">Book now</Link>
             <button className="burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen(!open)}><i /><i /></button>
