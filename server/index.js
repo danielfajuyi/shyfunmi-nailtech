@@ -608,6 +608,26 @@ admin.get('/clients', (_req, res) => res.json(db.users.filter((u) => u.role === 
   ...pub(u), createdAt: u.createdAt,
   bookings: db.bookings.filter((b) => b.userId === u.id).length, visits: visitsOf(u.id, u.phone),
 }))));
+admin.delete('/clients/:id', (req, res) => {
+  const u = db.users.find((x) => x.id === req.params.id);
+  if (!u) return bad(res, 'Client not found.', 404);
+  if (u.role === 'admin') return bad(res, 'Cannot delete an admin account.', 400);
+
+  // Unlink any existing bookings so records remain consistent
+  db.bookings.forEach((b) => {
+    if (b.userId === u.id) b.userId = null;
+  });
+
+  // Clean up user avatar if local file
+  if (u.avatar && !/^https?:/.test(u.avatar)) {
+    fs.unlink(path.join(uploads, path.basename(u.avatar)), () => {});
+  }
+
+  db.users = db.users.filter((x) => x.id !== req.params.id);
+  save();
+
+  res.json({ ok: true });
+});
 
 admin.get('/enrollments', (_req, res) => res.json(db.enrollments.slice().reverse()));
 admin.patch('/enrollments/:id', (req, res) => {

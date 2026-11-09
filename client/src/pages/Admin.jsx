@@ -635,7 +635,7 @@ function WalkInForm({ defaultDate, done, onBusy }) {
 
 /* ---------- Clients View ---------- */
 function Clients() {
-  const { data, error } = useLoad('/api/admin/clients');
+  const { data, reload, error } = useLoad('/api/admin/clients');
   const [q, setQ] = useState('');
   if (!data) return <Loading d={data} e={error} />;
   const list = data.filter((c) => `${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(q.toLowerCase()));
@@ -649,6 +649,18 @@ function Clients() {
     const a = document.createElement('a'); a.href = url; a.download = 'clients.csv'; a.click(); URL.revokeObjectURL(url);
   };
 
+  const del = async (id, name) => {
+    if (confirm(`Are you sure you want to delete client "${name}"? This action cannot be undone.`)) {
+      try {
+        await api.del(`/api/admin/clients/${id}`);
+        toast(`Client "${name}" deleted.`);
+        reload();
+      } catch (err) {
+        toast(err.message || 'Failed to delete client.', 'err');
+      }
+    }
+  };
+
   return (
     <>
       <div className="toolbar">
@@ -659,7 +671,7 @@ function Clients() {
         <button type="button" className="btn ghost sm" onClick={exportCSV}><DownloadIcon size={15} /> Export CSV</button>
       </div>
       <div className="table-wrap stack-table"><table>
-        <thead><tr><th>Name</th><th>Contact</th><th>Bookings</th><th>Completed visits</th><th>Joined</th></tr></thead>
+        <thead><tr><th>Name</th><th>Contact</th><th>Bookings</th><th>Completed visits</th><th>Joined</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
         <tbody>{list.map((c) => (
           <tr key={c.id}>
             <td data-label="Name"><b>{c.name}</b></td>
@@ -667,6 +679,40 @@ function Clients() {
             <td data-label="Bookings">{c.bookings}</td>
             <td data-label="Completed">{c.visits}</td>
             <td data-label="Joined">{new Date(c.createdAt).toLocaleDateString('en-NG')}</td>
+            <td data-label="Actions" style={{ textAlign: 'right' }}>
+              <div style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end', alignItems: 'center' }}>
+                {c.phone && (
+                  <a
+                    className="btn ghost sm"
+                    target="_blank"
+                    rel="noreferrer"
+                    href={waClient(c.phone, `Hello ${c.name}, reaching out from Shyfunmi Nails.`)}
+                    title="WhatsApp"
+                    aria-label={`WhatsApp ${c.name}`}
+                  >
+                    <WhatsAppIcon size={14} />
+                  </a>
+                )}
+                {c.email && (
+                  <a
+                    className="btn ghost sm"
+                    href={`mailto:${c.email}`}
+                    title="Email"
+                    aria-label={`Email ${c.name}`}
+                  >
+                    <MailIcon size={14} />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="btn ghost sm danger"
+                  onClick={() => del(c.id, c.name)}
+                  title={`Delete ${c.name}`}
+                >
+                  <TrashIcon size={14} /> Delete
+                </button>
+              </div>
+            </td>
           </tr>
         ))}</tbody>
       </table></div>
