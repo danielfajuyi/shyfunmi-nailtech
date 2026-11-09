@@ -43,7 +43,7 @@ const BLURB = {
   calendar: 'Appointments by day',
   bookings: 'Every booking, with status and actions',
   services: 'Menu, prices and durations',
-  gallery: 'Photos and videos on your public gallery',
+  gallery: 'Gallery media and the homepage hero video',
   clients: 'People who have booked with you',
   training: 'Nail training enquiries',
   reviews: 'Approve what shows on the site',

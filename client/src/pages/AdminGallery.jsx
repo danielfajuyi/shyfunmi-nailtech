@@ -9,7 +9,7 @@ import MediaViewer from '../components/MediaViewer.jsx';
 import Modal from '../components/Modal.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import {
-  ImageIcon, VideoIcon, UploadIcon, EditIcon, TrashIcon, SaveIcon, CloseIcon, SearchIcon, LayersIcon,
+  ImageIcon, VideoIcon, UploadIcon, EditIcon, TrashIcon, SaveIcon, CloseIcon, SearchIcon, LayersIcon, GlobeIcon,
 } from '../components/Icons.jsx';
 
 const BASE_TAGS = ['Cateye', 'French tips', 'Short and cute', 'Press-ons', 'Marble', 'Freestyle', 'Toe nails', 'Videos'];
@@ -28,6 +28,92 @@ async function shrink(file) {
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
     return blob ? new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
   } catch { return file; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Homepage hero video (plays inside the floating card on the homepage) */
+/* ------------------------------------------------------------------ */
+function HeroVideoPanel() {
+  const { site, reload: reloadSite } = useApp();
+  const current = site.settings.heroVideo || '';
+  const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState(false);
+  const input = useRef(null);
+
+  const choose = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('video/')) return toast('Please choose a video file (MP4, WebM or MOV).', 'err');
+    if (file.size > 30 * 1024 * 1024) return toast('That video is over 30 MB. Use a shorter clip.', 'err');
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      await api.upload('/api/admin/hero-video', fd);
+      toast('Hero video updated. It is live on the homepage now.');
+      await reloadSite();
+    } catch (x) {
+      // a host rejecting a big upload answers with a plain page, not JSON, so the generic message means "too large"
+      toast(x.message === 'Something went wrong. Try again.' ? 'The server rejected that file. Try a shorter clip, ideally under 4 MB.' : x.message, 'err');
+    } finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    try {
+      await api.del('/api/admin/hero-video');
+      toast('Hero video removed');
+      setAsk(false);
+      await reloadSite();
+    } catch (x) { toast(x.message, 'err'); }
+  };
+
+  return (
+    <section className="card hero-admin">
+      <div className="hero-admin-preview" aria-label="Current hero video preview">
+        {current ? (
+          <video key={current} src={current} poster={getVideoPoster(current)} muted loop autoPlay playsInline preload="metadata" />
+        ) : (
+          <div className="hero-admin-empty"><VideoIcon size={26} /><span>No video yet</span></div>
+        )}
+      </div>
+      <div className="hero-admin-body">
+        <div className="panel-head" style={{ marginBottom: 6 }}>
+          <div>
+            <h3>Homepage hero video</h3>
+            <p className="muted">Plays inside the floating card at the top of your homepage. One clip, on a loop, without sound.</p>
+          </div>
+        </div>
+        <ul className="tips">
+          <li>Vertical works best (4:5 or 3:4), showing a finished set</li>
+          <li>6 to 10 seconds, under 4 MB so it loads fast on phones</li>
+          <li>Good light and a clean background. Hands only, with the client’s OK</li>
+        </ul>
+        <div className="hero-admin-actions">
+          <button type="button" className="btn sm" onClick={() => input.current?.click()} disabled={busy}>
+            <UploadIcon size={15} /> {busy ? 'Uploading…' : current ? 'Replace video' : 'Upload video'}
+          </button>
+          {current && !busy && (
+            <>
+              <a className="btn ghost sm" href="/" target="_blank" rel="noreferrer"><GlobeIcon size={15} /> View on homepage</a>
+              <button type="button" className="btn ghost sm danger" onClick={() => setAsk(true)}><TrashIcon size={15} /> Remove</button>
+            </>
+          )}
+          <input ref={input} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={choose} />
+        </div>
+        {!current && <p className="muted hero-admin-note">Until you add one, the card shows the illustrated nails.</p>}
+      </div>
+
+      <ConfirmDialog
+        open={ask}
+        title="Remove the hero video?"
+        message="The homepage card will go back to showing the illustrated nails. You can upload a new video any time."
+        confirmLabel="Remove"
+        onConfirm={remove}
+        onClose={() => setAsk(false)}
+      />
+    </section>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,6 +374,7 @@ export default function AdminGallery() {
 
   return (
     <>
+      <HeroVideoPanel />
       <UploadPanel cats={cats} onDone={reloadSite} />
 
       <section className="am-library">

@@ -34,7 +34,7 @@ export function uploadBuffer(buffer, { folder, publicId, mime, resource_type } =
   });
 }
 
-export async function destroyPublicId(publicId) {
+export async function destroyPublicId(publicId, resourceType = 'image') {
   if (!configured || !publicId) return;
-  await cloudinary.uploader.destroy(publicId).catch(() => {});
+  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType }).catch(() => {});
 }

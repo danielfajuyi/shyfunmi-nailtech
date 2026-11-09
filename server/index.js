@@ -98,7 +98,7 @@ function createBooking(body, user, force = false) {
 
 const pubSettings = () => {
   const { businessName, tagline, address, phone, whatsapp, instagram, tiktok, currency, hours, blockedDates, loyaltyEvery, loyaltyDiscount } = db.settings;
-  return { businessName, tagline, address, phone, whatsapp, instagram, tiktok, currency, hours, blockedDates, loyaltyEvery, loyaltyDiscount };
+  return { businessName, tagline, address, phone, whatsapp, instagram, tiktok, currency, hours, blockedDates, loyaltyEvery, loyaltyDiscount, heroVideo: db.settings.heroVideo?.url || '' };
 };
 
 /* ---------- seed admin ---------- */
@@ -553,11 +553,55 @@ admin.patch('/photos/:id', (req, res) => {
 admin.delete('/photos/:id', async (req, res) => {
   const p = db.photos.find((x) => x.id === req.params.id);
   if (p) {
-    if (p.publicId) await destroyPublicId(p.publicId);
+    if (p.publicId) await destroyPublicId(p.publicId, /\/video\/upload\//.test(p.url) ? 'video' : 'image');
     else if (useBlob && /^https?:/.test(p.url)) await del(p.url).catch(() => {});
     else if (!/^https?:/.test(p.url)) fs.unlink(path.join(uploads, path.basename(p.url)), () => {});
   }
   db.photos = db.photos.filter((x) => x.id !== req.params.id); save(); res.json({ ok: true });
+});
+
+/* ---------- homepage hero video (the clip shown inside the floating 3D card) ---------- */
+const heroUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024, files: 1 },
+  fileFilter: (_r, f, cb) => cb(null, /^video\/(mp4|webm|quicktime|ogg|x-m4v)$/.test(f.mimetype)),
+});
+async function removeStoredAsset(a) {
+  if (!a?.url) return;
+  if (a.publicId) await destroyPublicId(a.publicId, 'video');
+  else if (useBlob && /^https?:/.test(a.url)) await del(a.url).catch(() => {});
+  else if (!/^https?:/.test(a.url)) fs.unlink(path.join(uploads, path.basename(a.url)), () => {});
+}
+admin.post('/hero-video', heroUpload.single('file'), async (req, res, next) => {
+  try {
+    const f = req.file;
+    if (!f) return bad(res, 'Choose a video (MP4, WebM or MOV).');
+    const ext = path.extname(f.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.mp4';
+    const name = 'hero-' + uid() + ext;
+    let url, publicId = '';
+    if (useCloudinary) {
+      const up = await uploadBuffer(f.buffer, { folder: 'shyfunmi/hero', publicId: name.replace(/\.[^.]+$/, ''), mime: f.mimetype, resource_type: 'video' });
+      url = up.secure_url; publicId = up.public_id;
+    } else if (useBlob) {
+      url = (await put('hero/' + name, f.buffer, { access: 'public', contentType: f.mimetype })).url;
+    } else {
+      fs.writeFileSync(path.join(uploads, name), f.buffer);
+      url = '/uploads/' + name;
+    }
+    const old = db.settings.heroVideo;
+    db.settings.heroVideo = { url, publicId, updatedAt: new Date().toISOString() };
+    save();
+    await removeStoredAsset(old);   // replacing frees the previous clip
+    res.status(201).json(db.settings.heroVideo);
+  } catch (e) { next(e); }
+});
+admin.delete('/hero-video', async (_req, res, next) => {
+  try {
+    const old = db.settings.heroVideo;
+    db.settings.heroVideo = null; save();
+    await removeStoredAsset(old);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
 });
 
 admin.get('/clients', (_req, res) => res.json(db.users.filter((u) => u.role === 'client').map((u) => ({

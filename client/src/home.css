@@ -243,3 +243,7 @@
   .hx-scene-wrap, .hx-step, .hx-about-frame { transform: none !important; opacity: 1 !important; }
   .hx-sway { animation: none !important; }
 }
+
+/* hero card video: fills the 3D card, sits under the sheen + tag, fades in when ready */
+.hx-card-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.7s ease; pointer-events: none; background: transparent; }
+.hx-card-video.is-ready { opacity: 1; }

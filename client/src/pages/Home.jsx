@@ -15,6 +15,7 @@ import Reveal from "../components/Reveal.jsx";
 import { Placeholder } from "../components/Nail.jsx";
 import VideoModal from "../components/VideoModal.jsx";
 import VideoCard from "../components/VideoCard.jsx";
+import HeroVideo from "../components/HeroVideo.jsx";
 import ServiceRow from "../components/ServiceRow.jsx";
 import {
   EASE,
@@ -170,7 +171,7 @@ const SPARKS = Array.from({ length: 18 }, (_, i) => ({
   d: (i % 6) * 0.5,
 }));
 
-function HeroScene({ photo }) {
+function HeroScene({ photo, video }) {
   const reduce = useReducedMotion();
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
@@ -221,7 +222,9 @@ function HeroScene({ photo }) {
               animate={reduce ? undefined : { y: [0, -12, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             >
-              {photo ? (
+              {video ? (
+                <HeroVideo src={video} />
+              ) : photo ? (
                 <img src={photo.url} alt="" loading="eager" />
               ) : (
                 <div className="hx-card-art">
@@ -248,7 +251,9 @@ function HeroScene({ photo }) {
               <span className="hx-sheen" />
               <span className="hx-card-tag">
                 <i />{" "}
-                {photo
+                {video
+                  ? "Fixed with care"
+                  : photo
                   ? photo.title || photo.category || "Latest set"
                   : "Fixed with care"}
               </span>
@@ -399,7 +404,7 @@ function Hero({ s, photo }) {
           className="hx-scene-wrap"
           style={{ y: sceneY, scale: sceneS, opacity: sceneO }}
         >
-          <HeroScene photo={photo} />
+          <HeroScene photo={photo} video={s.heroVideo} />
         </motion.div>
       </div>
       <div className="hx-scroll-cue" aria-hidden="true">
