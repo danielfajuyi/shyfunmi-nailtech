@@ -30,9 +30,30 @@ tbody tr:hover td { background: color-mix(in srgb, var(--blush) 38%, transparent
 /* ---------- Cursor ---------- */
 .fx-cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 9999; display: none; opacity: 0; }
 @media (pointer: fine) and (prefers-reduced-motion: no-preference) { .fx-cursor { display: block; } }
-.fx-cursor.ring { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent); transition: background 0.25s, border-color 0.25s; }
-.fx-cursor.ring.hot { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: var(--accent); }
-.fx-cursor.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.fx-cursor.ring {
+  width: 44px;
+  height: 44px;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.fx-cursor.ring.hot {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.fx-cursor.dot {
+  width: 8px;
+  height: 8px;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
 
 /* ---------- Page header (PageHero) ---------- */
 .ph { display: grid; gap: 24px; align-items: center; }
